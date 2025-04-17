@@ -46,12 +46,52 @@ var tformSchema = new mongoose.Schema({
         "Invalid email format"
       ]
     },
-  
 
       phoneNumber: {
         type: String,
         required: true,
         match: [/^\+\d{1,3}\d{6,14}$/, "Phone number must be 10 digits"],
+      },
+
+      Dob: {
+        type: Date,
+        required: true,
+      },
+
+      gender: {
+        type: String,
+        enum: [
+          "Male",
+          "Female"
+        ],
+        required: true,
+      },
+
+      maritalStatus: {
+        type: String,
+        enum: [
+          "Single",
+          "Married",
+          "Divorced"
+        ],
+        required: true,
+      },
+
+     
+      address: {
+        type: String,
+        required: true,
+        trim: true,
+      },
+ 
+      state: {
+        type: String,
+        required: true,
+        trim: true,
+        match: [
+          /^[A-Za-z\s\-,.'()]+$/,
+          "Only letters, spaces, and basic punctuation allowed"
+        ]
       },
 
       coverageAmount: {
@@ -133,11 +173,25 @@ var tformSchema = new mongoose.Schema({
      livingBenefits: {
         type: String,
         enum: ["yes", "no"],
+        required: true,
+      },
+
+      contactMethod: {
+        type: String,
+        enum: ["Phone", "Email", "Text"],
+        required: true,
+      },
+
+      contactTime: {
+        type: String,
+        enum: ["morning", "afternoon", "evening"],
+        required: true,
       },
 
       permanentCoverageOptions: {
         type: String,
         enum: ["yes", "no"],
+        required: true,
       },
 
       verification:{
@@ -153,6 +207,23 @@ var tformSchema = new mongoose.Schema({
       ref: 'EmailVerification'
             },
     }, { timestamps: true });
+    tformSchema.pre("save", function (next) {
+          const dob = this.Dob;
+          const today = new Date();
+          const cutoffDate = new Date(
+            today.getFullYear() - 18,
+            today.getMonth(),
+            today.getDate()
+          );
+        
+          if (dob > cutoffDate) {
+            const error = new mongoose.Error.ValidationError();
+            error.message = "User must be at least 18 years old";
+            next(error);
+          } else {
+            next();
+          }
+        });
     
     
 //Export the model

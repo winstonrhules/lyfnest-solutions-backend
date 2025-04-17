@@ -35,10 +35,47 @@ var formSchema = new mongoose.Schema({
         required: true,
         match: [/^\+\d{1,3}\d{6,14}$/, "Phone number must be 10 digits"],
       },
+
       Dob: {
         type: Date,
         required: true,
       },
+
+      gender: {
+        type: String,
+        enum: [
+          "Male",
+          "Female"
+        ],
+        required: true,
+      },
+
+      maritalStatus: {
+        type: String,
+        enum: [
+          "Single",
+          "Married",
+          "Divorced"
+        ],
+        required: true,
+      },
+
+      address: {
+        type: String,
+        required: true,
+        trim: true,
+      },
+
+      state: {
+        type: String,
+        required: true,
+        trim: true,
+        match: [
+          /^[A-Za-z\s\-,.'()]+$/,
+          "Only letters, spaces, and basic punctuation allowed"
+        ]
+      },
+
       Dependents: {
         type: String,
         enum: ["yes", "no"],

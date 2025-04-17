@@ -67,7 +67,9 @@ const sendEmailVerification = asyncHandler(async (req, res) => {
   await transporter.sendMail({
     to: email,
     subject: 'Verify Your Email',
-    text: `Your verification code is: ${token}`
+    text: `Lyfnest Solutions will NEVER proactively call or text you for this code.DO NOT share it.
+            Your VERIFICATION CODE is: ${token} This code is active for 10 minutes from the time of request.
+            Please do not reply to this email.if you have any questions, or didn't request a code, please contact support for assistance.`
   });
  }catch(mailError){
   console.error("error sending mail", mailError)

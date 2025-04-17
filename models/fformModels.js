@@ -67,12 +67,32 @@ var fformSchema = new mongoose.Schema({
         required: true,
       },
 
+
+      maritalStatus: {
+        type: String,
+        enum: [
+          "Single",
+          "Married",
+          "Divorced"
+        ],
+        required: true,
+      },
+
       address: {
         type: String,
         required: true,
         trim: true,
       },
 
+      state: {
+        type: String,
+        required: true,
+        trim: true,
+        match: [
+          /^[A-Za-z\s\-,.'()]+$/,
+          "Only letters, spaces, and basic punctuation allowed"
+        ]
+      },
 
       coverageAmount: {
         type: String,
@@ -101,6 +121,12 @@ var fformSchema = new mongoose.Schema({
         required: true,
       },
 
+      contactTime: {
+        type: String,
+        enum: ["morning", "afternoon", "evening"],
+        required: true,
+      },
+
       coverageTimeline: {
         type: String,
         enum: ["ASAP", "Within 1 Month", "Within 3 Months", "Exploring Options"],
@@ -126,8 +152,7 @@ var fformSchema = new mongoose.Schema({
           "Only letters, spaces, and basic punctuation allowed"
         ]
       },
-
-
+   
       insurancePolicy: {
         type: String,
         enum: ["yes", "no"],
@@ -145,8 +170,6 @@ var fformSchema = new mongoose.Schema({
              ref: 'EmailVerification'
            },
            
-
-
     }, { timestamps: true });
     
 fformSchema.pre("save", function (next) {

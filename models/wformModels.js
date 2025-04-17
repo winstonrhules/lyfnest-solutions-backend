@@ -48,7 +48,6 @@ var wformSchema = new mongoose.Schema({
       ]
     },
   
-
       phoneNumber: {
         type: String,
         required: true,
@@ -79,6 +78,24 @@ var wformSchema = new mongoose.Schema({
         required: true,
       },
 
+     
+      address: {
+        type: String,
+        required: true,
+        trim: true,
+       
+      },
+ 
+      state: {
+        type: String,
+        required: true,
+        trim: true,
+        match: [
+          /^[A-Za-z\s\-,.'()]+$/,
+          "Only letters, spaces, and basic punctuation allowed"
+        ]
+      },
+
       occupation: {
         type: String,
         required: true,
@@ -98,19 +115,11 @@ var wformSchema = new mongoose.Schema({
       }
     },
 
-      address: {
-        type: String,
-        required: true,
-        trim: true,
-      },
 
       currentInsurance: {
         type: String,
-        trim: true,
-        match: [
-          /^[A-Za-z\s\-,.'()]+$/,
-          "Only letters, spaces, and basic punctuation allowed"
-        ]
+        enum: ["yes", "no"],
+        required: true,
       },
 
       preferredCoverageAmount: {
@@ -125,6 +134,7 @@ var wformSchema = new mongoose.Schema({
       medicalConditions: {
         type: String,
         enum: ["yes", "no"],
+        required: true,
       },
 
       premiumTerms: {
@@ -140,6 +150,18 @@ var wformSchema = new mongoose.Schema({
         type: String,
         enum: ["ASAP", "1-3 months", "3-6 months", "No rush"],
         required: true,                
+      },
+
+      contactMethod: {
+        type: String,
+        enum: ["Phone", "Email", "Text"],
+        required: true,
+      },
+
+      contactTime: {
+        type: String,
+        enum: ["morning", "afternoon", "evening"],
+        required: true,
       },
 
       comments: {

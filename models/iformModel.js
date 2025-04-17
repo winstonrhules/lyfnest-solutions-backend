@@ -68,6 +68,33 @@ var iformSchema = new mongoose.Schema({
         required: true,
       },
 
+
+      maritalStatus: {
+        type: String,
+        enum: [
+          "Single",
+          "Married",
+          "Divorced"
+        ],
+        required: true,
+      },
+
+      address: {
+        type: String,
+        required: true,
+        trim: true,
+      },
+
+      state: {
+        type: String,
+        required: true,
+        trim: true,
+        match: [
+          /^[A-Za-z\s\-,.'()]+$/,
+          "Only letters, spaces, and basic punctuation allowed"
+        ]
+      },
+
       occupation: {
         type: String,
         required: true,
@@ -86,15 +113,18 @@ var iformSchema = new mongoose.Schema({
            "100k-150k",
            "Over $150k"
         ],
+        required: true,
       },
 
       insuranceAgent: {
         type: String,
         enum: ["yes", "no"],
+        required: true,
       },
 
       financialGoal: {
         type: [String],
+        required: true,
         enum: ["Protecting my family’s financial future", "Saving for education", " Preparing for retirement", "Reducing tax liabilities", "Accessing funds for emergencies or opportunities", "Other(please specify)"],
       },
 
@@ -103,6 +133,10 @@ var iformSchema = new mongoose.Schema({
         required: function () {
           return this.financialGoal.includes("Other(please specify)");
         },
+        match: [
+          /^[A-Za-z\s\-,.'()]+$/,
+          "Only letters, spaces, and basic punctuation allowed"
+        ]
       },
 
       premiumTerms: {
@@ -119,6 +153,18 @@ var iformSchema = new mongoose.Schema({
         type: String,
         enum: ["ASAP", "1-3 months", "3-6 months", "No rush"],
         required: true,                
+      },
+
+      contactMethod: {
+        type: String,
+        enum: ["Phone", "Email", "Text"],
+        required: true,
+      },
+
+      contactTime: {
+        type: String,
+        enum: ["morning", "afternoon", "evening"],
+        required: true,
       },
       
       emailVerified: { type: Boolean, default: false },

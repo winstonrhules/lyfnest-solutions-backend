@@ -66,7 +66,9 @@ const sendEmailVerification = asyncHandler(async (req, res) => {
   await transporter.sendMail({
     to: email,
     subject: 'Verify Your Email',
-    text: `Your verification code is: ${token}`
+    text: `Lyfnest Solutions will NEVER proactively call or text you for this code.DO NOT share it.
+            Your VERIFICATION CODE is: ${token}. This code is active for 10 minutes from the time of request.
+            Please do not reply to this email.if you have any questions, or didn't request a code, please contact support for assistance.`
   });
 
   res.status(200).json({ message: 'Verification email sent', expiresAt });
@@ -173,15 +175,28 @@ const submissionForm = asyncHandler(async(req, res)=>{
    // Create user submission
   //  const [day, month, year]= formData.Dob.split('-')
   //  const dobDate = new Date(year, month-1, day)
+  const [year, month, day]= formData.Dob.split('-')
+  const dobDate = new Date(year, month - 1, day)
+
+  const today = new Date();
+  const cutoffDate = new Date(
+  today.getFullYear() - 18,
+  today.getMonth(),
+  today.getDate()
+);
+
+if (dobDate > cutoffDate) {
+ return res.status(400).json({ error: "You must be at least 18 years old" });
+}
 
    const newTform = new Tform({
-     ...formData,
-    //  Dob:dobDate,
+    ...formData,
+    Dob:dobDate,
     verification: verificationId,
-     verifiedAt: new Date(),
-     email,
-     emailVerification: emailVerification._id,
-     emailVerified: true
+    verifiedAt: new Date(),
+    email,
+    emailVerification: emailVerification._id,
+    emailVerified: true
   });
 
   await  newTform.save();
