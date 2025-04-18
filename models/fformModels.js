@@ -2,25 +2,7 @@ const mongoose = require('mongoose'); // Erase if already required
 
 // Declare the Schema of the Mongo model
 var fformSchema = new mongoose.Schema({
-    // firstName: {
-    //     type: String,
-    //     required: true,
-    //     trim: true,
-    //   },
-
-    //   lastName: {
-    //     type: String,
-    //     required: true,
-    //     trim: true,
-    //   },
-
-    //   email: {
-    //     type: String,
-    //     required: true,
-    //     unique: true,
-    //     lowercase: true,
-    //     trim: true,
-    //   },
+  
     firstName: {
       type: String,
       required: true,
@@ -78,21 +60,44 @@ var fformSchema = new mongoose.Schema({
         required: true,
       },
 
-      address: {
-        type: String,
-        required: true,
-        trim: true,
+       address: {
+        street: {
+          type: String,
+          required: [true, 'Street address is required'],
+          trim: true
+        },
+        city: {
+          type: String,
+          required: [true, 'City is required'],
+          trim: true
+        },
+        zip: {
+          type: String,
+          required: [true, 'Zip code is required'],
+          validate: {
+            validator: function(v) {
+              return /^\d{5}(-\d{4})?$/.test(v);
+            },
+            message: props => `${props.value} is not a valid zip code!`
+          }
+        }
       },
-
+      
       state: {
         type: String,
-        required: true,
+        required: [true, 'State is required'],
+        uppercase: true,
         trim: true,
-        match: [
-          /^[A-Za-z\s\-,.'()]+$/,
-          "Only letters, spaces, and basic punctuation allowed"
-        ]
+        minlength: [2, 'State must be exactly 2 characters'],
+        maxlength: [2, 'State must be exactly 2 characters'],
+        validate: {
+          validator: function(v) {
+            return /^[A-Z]{2}$/.test(v);
+          },
+          message: props => `${props.value} is not a valid state code!`
+        }
       },
+    
 
       coverageAmount: {
         type: String,

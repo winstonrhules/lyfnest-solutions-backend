@@ -60,21 +60,60 @@ var formSchema = new mongoose.Schema({
         required: true,
       },
 
-      address: {
-        type: String,
-        required: true,
-        trim: true,
-      },
+      // address: {
+      //   type: String,
+      //   required: true,
+      //   trim: true,
+      // },
 
+      // state: {
+      //   type: String,
+      //   required: true,
+      //   trim: true,
+      //   match: [
+      //     /^[A-Za-z\s\-,.'()]+$/,
+      //     "Only letters, spaces, and basic punctuation allowed"
+      //   ]
+      // },
+
+      address: {
+        street: {
+          type: String,
+          required: [true, 'Street address is required'],
+          trim: true
+        },
+        city: {
+          type: String,
+          required: [true, 'City is required'],
+          trim: true
+        },
+        zip: {
+          type: String,
+          required: [true, 'Zip code is required'],
+          validate: {
+            validator: function(v) {
+              return /^\d{5}(-\d{4})?$/.test(v);
+            },
+            message: props => `${props.value} is not a valid zip code!`
+          }
+        }
+      },
+      
       state: {
         type: String,
-        required: true,
+        required: [true, 'State is required'],
+        uppercase: true,
         trim: true,
-        match: [
-          /^[A-Za-z\s\-,.'()]+$/,
-          "Only letters, spaces, and basic punctuation allowed"
-        ]
+        minlength: [2, 'State must be exactly 2 characters'],
+        maxlength: [2, 'State must be exactly 2 characters'],
+        validate: {
+          validator: function(v) {
+            return /^[A-Z]{2}$/.test(v);
+          },
+          message: props => `${props.value} is not a valid state code!`
+        }
       },
+    
 
       Dependents: {
         type: String,
