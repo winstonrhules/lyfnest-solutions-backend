@@ -67,8 +67,8 @@ const sendEmailVerification = asyncHandler(async (req, res) => {
     to: email,
     subject: 'Verify Your Email',
     text: `Lyfnest Solutions will NEVER proactively call or text you for this code.DO NOT share it.
-            Your VERIFICATION CODE is: ${token}. This code is active for 10 minutes from the time of request.
-            Please do not reply to this email.if you have any questions, or didn't request a code, please contact support for assistance.`
+    Your VERIFICATION CODE is: ${token}. This code is active for 10 minutes from the time of request.
+    Please do not reply to this email.if you have any questions, or didn't request a code, please contact support for assistance.`
   });
 
   res.status(200).json({ message: 'Verification email sent', expiresAt });

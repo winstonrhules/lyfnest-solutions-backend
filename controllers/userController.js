@@ -5,9 +5,7 @@ const User = require("../models/userModels");
 const asyncHandler = require("express-async-handler");
 const validateMongoDb= require("../utils/validateMongoDb");
 const jwt = require("jsonwebtoken")
-//const sendEmail = require("../controllers/sendEmailController")
-//const crypto = require("crypto");
-//const uniqid=require("uniqid")
+
 
 const registerUser = asyncHandler(async(req, res)=>{
   try{
@@ -23,7 +21,7 @@ const registerUser = asyncHandler(async(req, res)=>{
         res.status(201).json(newUser)
     }
     else{
-    throw new Error("User Already Exist")
+      res.status(400).json({ error: 'User Already Exist' });
     }
   }catch(error){
     res.status(400).json({
@@ -53,36 +51,10 @@ const loginUser = asyncHandler(async(req, res)=>{
         })
     }
     else{
-        throw new Error("Wrong Credentials, failed to login")
+        res.status(400).json({ error: "Wrong Credentials, failed to login" });
     }     
 })
 
-// const loginAdmin = asyncHandler(async(req, res)=>{
-//   const {email, password}=req.body;
-//   const findAdmin = await User.findOne({email:email})
-//   if(findAdmin.role!=="admin") throw new Error("you are not authorized")
-//   if(findAdmin && await findAdmin.isPasswordMatched(password)){
-//       const refreshToken = generateRefreshToken(findAdmin?._id)
-//       const updateuser= await User.findByIdAndUpdate(findAdmin.id, {refreshToken:refreshToken}, {new:true})
-//       res.cookie("refreshToken", refreshToken, 
-//           {
-//           httpOnly:true,
-//           secure:true,
-//           sameSite:'None',
-//           maxAge:72*60*60*1000
-//          })
-//       res.json({
-//           _id:findAdmin?._id,
-//           firstname:findAdmin?.firstname,
-//           lastname:findAdmin?.lastname,
-//           email:findAdmin?.email,
-//           token:generateToken(findAdmin?._id)
-//       })
-//   }
-//   else{
-//       throw new Error("Wrong Credentials, failed to login")
-//   }     
-// })
 
 
 const loginAdmin = asyncHandler(async (req, res) => {
@@ -91,12 +63,12 @@ const loginAdmin = asyncHandler(async (req, res) => {
   // 1. Find admin user
   const admin = await User.findOne({ email });
   if (!admin || admin.role !== "admin") {
-    throw new Error("Not authorized");
+    res.status(400).json({ error: "Not authorized" });
   }
 
   // 2. Verify password
   if (!(await admin.isPasswordMatched(password))) {
-    throw new Error("Invalid credentials");
+    res.status(400).json({ error: "Invalid credentials" });
   }
 
   // 3. Generate tokens
@@ -136,7 +108,7 @@ const getallUsers = asyncHandler(async(req, res)=>{
       res.status(200).json(getUsers)
     }
     catch(error){
-        throw new Error("failed to get all users")
+        res.status(400).json({ error: "failed to get all users" });
     }
 })
 
@@ -148,7 +120,7 @@ const getaUser = asyncHandler(async(req, res)=>{
       res.json(getUser)
     }
     catch(error){
-        throw new Error("failed to get user")
+        res.status(400).json({ error: "failed to get user" });
     }
 })
 
@@ -160,7 +132,7 @@ const deleteaUser = asyncHandler(async(req, res)=>{
       res.json(deletedUser)
     }
     catch(error){
-        throw new Error("failed to delete a user")
+        res.status(400).json({ error: "failed to delete a user" });
     }
 })
 
@@ -184,7 +156,8 @@ const updateUser = asyncHandler(async(req, res)=>{
       res.json(updatedUser)
     }
     catch(error){
-        throw new Error("failed to update a user")
+       
+        res.status(400).json({ error: "failed to update a user" });
     }
 })
 

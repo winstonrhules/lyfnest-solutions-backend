@@ -8,6 +8,7 @@ const tformRouter = require('./routes/tformRoutes')
 const wformRouter = require('./routes/wformRoutes')
 const iformRouter = require('./routes/iformRoutes')
 const fformRouter = require('./routes/fformRoutes')
+
 const corsConfig = require('./middlewares/corsConfig')
 const cookieParser = require('cookie-parser')
 const { notFound, errorHandler } = require('./middlewares/errorHandler')
@@ -23,6 +24,7 @@ app.use('/api/tforms', tformRouter)
 app.use('/api/wforms', wformRouter)
 app.use('/api/iforms', iformRouter)
 app.use('/api/fforms', fformRouter)
+
 app.use(notFound)
 app.use(errorHandler)
 app.listen(PORT, ()=>{

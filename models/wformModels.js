@@ -1,53 +1,36 @@
-const mongoose = require('mongoose'); // Erase if already required
+const mongoose = require('mongoose');
 
-// Declare the Schema of the Mongo model
 var wformSchema = new mongoose.Schema({
-    // firstName: {
-    //     type: String,
-    //     required: true,
-    //     trim: true,
-    //   },
 
-    //   lastName: {
-    //     type: String,
-    //     required: true,
-    //     trim: true,
-    //   },
-
-    //   email: {
-    //     type: String,
-    //     required: true,
-    //     unique: true,
-    //     lowercase: true,
-    //     trim: true,
-    //   },
-
-    firstName: {
+  firstName: {
       type: String,
       required: true,
       trim: true,
       match: [/^[A-Za-z\s'-]+$/, "Only letters, spaces, apostrophes, and hyphens allowed"]
     },
-  
-    lastName: {
-      type: String,
-      required: true,
-      trim: true,
-      match: [/^[A-Za-z\s'-]+$/, "Only letters, spaces, apostrophes, and hyphens allowed"]
-    },
-  
-    email: {
-      type: String,
-      required: true,
-      unique: true,
-      lowercase: true,
-      trim: true,
-      match: [
-        /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$/,
-        "Invalid email format"
-      ]
-    },
-  
+
+
+
+      lastName: {
+        type: String,
+        required: true,
+        trim: true,
+        match: [/^[A-Za-z\s'-]+$/, "Only letters, spaces, apostrophes, and hyphens allowed"]
+      },
+
+
+      email: {
+        type: String,
+        required: true,
+        unique: true,
+        lowercase: true,
+        trim: true,
+        match: [
+          /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$/,
+          "Invalid email format"
+        ]
+      },
+
       phoneNumber: {
         type: String,
         required: true,
@@ -68,6 +51,7 @@ var wformSchema = new mongoose.Schema({
         required: true,
       },
 
+
       maritalStatus: {
         type: String,
         enum: [
@@ -78,7 +62,6 @@ var wformSchema = new mongoose.Schema({
         required: true,
       },
 
-     
       address: {
         street: {
           type: String,
@@ -129,34 +112,37 @@ var wformSchema = new mongoose.Schema({
       },
 
       annualIncome: {
-        type: Number,
+        type: String,
+        enum: [
+          "Under $50k",
+          "50k-100k",
+           "100k-150k",
+           "Over $150k"
+        ],
         required: true,
-        min: [1, "Annual Income cannot be negative"],
-        validate: {
-        validator: Number.isInteger,
-      }
-    },
+      },
 
-
-      currentInsurance: {
+      insuranceAgent: {
         type: String,
         enum: ["yes", "no"],
         required: true,
       },
 
-      preferredCoverageAmount: {
-        type: Number,
+      financialGoal: {
+        type: [String],
         required: true,
-        min: [1, "Preferred Coverage Amount cannot be negative"],
-        validate: {
-        validator: Number.isInteger,
-      }
+        enum: ["Protecting my family’s financial future", "Saving for education", " Preparing for retirement", "Reducing tax liabilities", "Accessing funds for emergencies or opportunities", "Other(please specify)"],
       },
 
-      medicalConditions: {
+      otherSpecify: {
         type: String,
-        enum: ["yes", "no"],
-        required: true,
+        required: function () {
+          return this.financialGoal.includes("Other(please specify)");
+        },
+        match: [
+          /^[A-Za-z\s\-,.'()]+$/,
+          "Only letters, spaces, and basic punctuation allowed"
+        ]
       },
 
       premiumTerms: {
@@ -164,6 +150,7 @@ var wformSchema = new mongoose.Schema({
         enum: [
           "Flexible Premium",
           "Fixed Premium",
+          "Not Sure"
         ],
         required: true,
       },
@@ -185,51 +172,39 @@ var wformSchema = new mongoose.Schema({
         enum: ["morning", "afternoon", "evening"],
         required: true,
       },
-
-      comments: {
-        type: String,
-        trim: true,
-        match: [
-          /^[A-Za-z\s\-,.'()]+$/,
-          "Only letters, spaces, and basic punctuation allowed"
-        ]
+      
+      emailVerified: { type: Boolean, default: false },
+      emailVerification: { 
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'EmailVerification'
       },
-
+      
+     
       verification:{
         type:mongoose.Schema.Types.ObjectId,
         ref:'Verification',
         required:true,
       },
 
-         
-      emailVerified: { type: Boolean, default: false },
-      emailVerification: { 
-              type: mongoose.Schema.Types.ObjectId,
-              ref: 'EmailVerification'
-            },
-            
-
     }, { timestamps: true });
     
-   wformSchema.pre("save", function (next) {
-         const dob = this.Dob;
-         const today = new Date();
-         const cutoffDate = new Date(
-           today.getFullYear() - 18,
-           today.getMonth(),
-           today.getDate()
-         );
-       
-         if (dob > cutoffDate) {
-           const error = new mongoose.Error.ValidationError();
-           error.message = "User must be at least 18 years old";
-           next(error);
-         } else {
-           next();
-         }
-       });
-  
+    wformSchema.pre("save", function (next) {
+      const dob = this.Dob;
+      const today = new Date();
+      const cutoffDate = new Date(
+        today.getFullYear() - 18,
+        today.getMonth(),
+        today.getDate()
+      );
     
+      if (dob > cutoffDate) {
+        const error = new mongoose.Error.ValidationError();
+        error.message = "User must be at least 18 years old";
+        next(error);
+      } else {
+        next();
+      }
+    });
 
-//Export the model
+
 module.exports = mongoose.model('Wform', wformSchema);

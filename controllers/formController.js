@@ -5,7 +5,7 @@ const asyncHandler = require('express-async-handler')
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const EmailVerification = require('../models/emailVerificationsModels');
-
+const Notification = require('../models/notificationModels');
 
 const client = twilio(
   process.env.TWILIO_SID, 
@@ -68,8 +68,8 @@ const sendEmailVerification = asyncHandler(async (req, res) => {
     to: email,
     subject: 'Verify Your Email',
     text: `Lyfnest Solutions will NEVER proactively call or text you for this code.DO NOT share it.
-            Your VERIFICATION CODE is: ${token} This code is active for 10 minutes from the time of request.
-            Please do not reply to this email.if you have any questions, or didn't request a code, please contact support for assistance.`
+    Your VERIFICATION CODE is: ${token} This code is active for 10 minutes from the time of request.
+    Please do not reply to this email.if you have any questions, or didn't request a code, please contact support for assistance.`
   });
  }catch(mailError){
   console.error("error sending mail", mailError)
@@ -231,4 +231,52 @@ const getallForms = asyncHandler(async(req, res)=>{
   
 })
 
-module.exports = {initialVerificationChecks, sendEmailVerification, verifyCode, verifyEmailCode, submissionForm, getallForms}
+const getNotifs = asyncHandler(async(req, res)=>{
+  try{
+ const notifs = await Notification.find().sort({ timestamp: -1 });
+  res.json(notifs);
+  }
+   catch(error){
+    throw new Error("failed to get notifications")
+  }
+})
+// GET all notifications
+const getAllNotifs = asyncHandler(async(req, res)=>{
+  try{
+    const notifs = await Notification.find().sort({ timestamp: -1 });
+    res.status(200).json(notifs);
+  }
+  catch(error){
+    throw new Error("failed to get all notifications")
+  }
+}) 
+// POST a new notification
+const createNotifs = asyncHandler(async(req, res)=>{
+
+  try {
+    const newNotif = new Notification({ 
+      message:req.body.message, 
+      formType:req.body.formType, 
+      read:req.body.read||false });
+    await newNotif.save();
+    res.status(201).json({ success: true });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to save notification' });
+  }
+});
+
+// DELETE all notifications
+const deleteNotifs = asyncHandler(async(req, res)=>{
+  await Notification.deleteMany({});
+  res.json({ success: true });
+});
+
+// DELETE a specific notification
+const deleteANotifs = asyncHandler(async(req, res)=>{
+  const { id } = req.params;
+  await Notification.findByIdAndDelete(id);
+  res.json({ success: true });
+});
+
+
+module.exports = {initialVerificationChecks, sendEmailVerification, verifyCode, verifyEmailCode, submissionForm, getallForms, getNotifs, getAllNotifs, createNotifs, deleteNotifs, deleteANotifs}

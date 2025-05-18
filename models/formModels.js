@@ -66,15 +66,7 @@ var formSchema = new mongoose.Schema({
       //   trim: true,
       // },
 
-      // state: {
-      //   type: String,
-      //   required: true,
-      //   trim: true,
-      //   match: [
-      //     /^[A-Za-z\s\-,.'()]+$/,
-      //     "Only letters, spaces, and basic punctuation allowed"
-      //   ]
-      // },
+    
 
       address: {
         street: {
