@@ -1,6 +1,6 @@
 const cors = require('cors')
 const corsOption = {
-    origin:[process.env.FRONT_URL, process.env.LFRONT_URL,  process.env.LADMIN_URL],
+    origin:['https://life.lyfnestsolutions.com', 'http://localhost:5174',  'http://localhost:5173'],
     credentials:true
 }
 

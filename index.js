@@ -8,7 +8,6 @@ const tformRouter = require('./routes/tformRoutes')
 const wformRouter = require('./routes/wformRoutes')
 const iformRouter = require('./routes/iformRoutes')
 const fformRouter = require('./routes/fformRoutes')
-
 const corsConfig = require('./middlewares/corsConfig')
 const cookieParser = require('cookie-parser')
 const { notFound, errorHandler } = require('./middlewares/errorHandler')
@@ -16,7 +15,7 @@ DBconnect()
 const PORT = process.env.PORT || 4000
 app.use(cookieParser())
 app.use(express.json())
-app.use(express.urlencoded({ extended: true}));
+app.use(express.urlencoded({ extended: true}))
 app.use(corsConfig)
 app.use('/api/user',  authRouter)
 app.use('/api/forms', formRouter)
