@@ -256,12 +256,15 @@ const createNotifs = asyncHandler(async(req, res)=>{
   try {
     const newNotif = new Notification({ 
       message:req.body.message, 
-      formType:req.body.formType, 
-      read:req.body.read||false });
+      formType:req.body.formType,
+      timestamp: new Date(req.body.timestamp),
+      read:req.body.read||false
+     });
     await newNotif.save();
     res.status(201).json({ success: true });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to save notification' });
+    console.error("save error", err)
+    res.status(500).json({ error: 'Failed to save notification', details:err.message });
   }
 });
 

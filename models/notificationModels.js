@@ -1,9 +1,8 @@
 const mongoose = require('mongoose');
 
 const notificationSchema = new mongoose.Schema({
-  id: { type: Number, required: true },
   message: { type: String, required: true },
-  timestamp: { type: Date, required: true },
+  timestamp: { type: Date, required: true, default:Date.now},
   read: { type: Boolean, default: false },
   formType:{
     type: String, 
