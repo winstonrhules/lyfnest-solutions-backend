@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const verificationLimiter = require('../middlewares/rateLimiter');
+// const verificationLimiter = require('../middlewares/rateLimiter');
 const {initialVerificationChecks, sendEmailVerification, verifyCode, submissionForm, verifyEmailCode, getallForms, getNotifs, getAllNotifs, createNotifs, deleteNotifs, deleteANotifs } = require('../controllers/formController');
 
 
