@@ -1,7 +1,9 @@
 const cors = require('cors')
 const corsOption = {
-    origin:['https://life.lyfnestsolutions.com', 'http://localhost:5174',  'http://localhost:5173'],
+    origin:[process.env.FRONT_ORIGIN, process.env.LFRONT_ORIGIN,  process.env.LADMIN_ORIGIN],
     credentials:true
 }
 
 module.exports = cors(corsOption)
+
+
