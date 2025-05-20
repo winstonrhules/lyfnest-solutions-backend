@@ -65,11 +65,28 @@ const sendEmailVerification = asyncHandler(async (req, res) => {
   );
  try{
   await transporter.sendMail({
-    to: email,
-    subject: 'Verify Your Email',
-    text: `Lyfnest Solutions will NEVER proactively call or text you for this code.DO NOT share it.
-    Your VERIFICATION CODE is: ${token} This code is active for 10 minutes from the time of request.
-    Please do not reply to this email.if you have any questions, or didn't request a code, please contact support for assistance.`
+      to: email,
+      subject: 'Verify Your Email Address',
+      text: `LyfNest Solutions will NEVER proactively call or text you for this code. DO NOT share it.
+      Your verification code is: ${token}
+      This code is active for 10 minutes from the time of request.`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #1a237e;">Email Verification</h2>
+          <p>Your verification code is:</p>
+          <div style="background: #f5f5f5; padding: 20px; font-size: 24px; letter-spacing: 2px; margin: 20px 0;">
+            ${token}
+          </div>
+          <p style="color: #616161;">
+            <strong>Important:</strong>
+            <ul>
+              <li>This code expires in 10 minutes</li>
+              <li>Never share this code with anyone</li>
+              <li>If you didn't request this code, please contact support</li>
+            </ul>
+          </p>
+        </div>
+          `
   });
  }catch(mailError){
   console.error("error sending mail", mailError)
@@ -270,8 +287,14 @@ const createNotifs = asyncHandler(async(req, res)=>{
 
 // DELETE all notifications
 const deleteNotifs = asyncHandler(async(req, res)=>{
+  try{
   await Notification.deleteMany({});
   res.json({ success: true });
+  }catch (err) {
+    console.error("save error", err)
+    res.status(500).json({ error: 'Failed to clear notification', details:err.message });
+  }
+
 });
 
 // DELETE a specific notification
