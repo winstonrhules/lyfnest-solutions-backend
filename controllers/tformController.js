@@ -5,7 +5,7 @@ const asyncHandler = require('express-async-handler')
 const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const EmailVerification = require('../models/emailVerificationsModels');
-
+const Notification = require('../models/notificationModels');
 
 
 const client = twilio(
@@ -228,8 +228,55 @@ const getallTforms = asyncHandler(async(req, res)=>{
   
 })
 
+const getNotifs = asyncHandler(async(req, res)=>{
+  try{
+ const notifs = await Notification.find().sort({ timestamp: -1 });
+  res.json(notifs);
+  }
+   catch(error){
+    throw new Error("failed to get notifications")
+  }
+})
+// GET all notifications
+const getAllNotifs = asyncHandler(async(req, res)=>{
+  try{
+    const notifs = await Notification.find().sort({ timestamp: -1 });
+    res.status(200).json(notifs);
+  }
+  catch(error){
+    throw new Error("failed to get all notifications")
+  }
+}) 
+// POST a new notification
+const createNotifs = asyncHandler(async(req, res)=>{
+
+  try {
+    const newNotif = new Notification({ 
+      message:req.body.message, 
+      formType:req.body.formType,
+      timestamp: new Date(req.body.timestamp),
+      read:req.body.read||false
+     });
+    await newNotif.save();
+    res.status(201).json({ success: true });
+  } catch (err) {
+    console.error("save error", err)
+    res.status(500).json({ error: 'Failed to save notification', details:err.message });
+  }
+});
+
+// DELETE all notifications
+const deleteNotifs = asyncHandler(async(req, res)=>{
+  await Notification.deleteMany({});
+  res.json({ success: true });
+});
+
+// DELETE a specific notification
+const deleteANotifs = asyncHandler(async(req, res)=>{
+  const { id } = req.params;
+  await Notification.findByIdAndDelete(id);
+  res.json({ success: true });
+});
 
 
-
-
-module.exports = {initialVerificationChecks, sendEmailVerification, verifyCode, verifyEmailCode, submissionForm, getallTforms}
+module.exports = {initialVerificationChecks, sendEmailVerification, verifyCode, verifyEmailCode, submissionForm, getallTforms, getNotifs, getAllNotifs, createNotifs, deleteNotifs, deleteANotifs}

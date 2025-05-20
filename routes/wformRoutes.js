@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 //const verificationLimiter = require('../middlewares/rateLimiter');
-const {initialVerificationChecks, sendEmailVerification, verifyCode, verifyEmailCode, submissionForm, getallWforms} = require('../controllers/wformController');
+const {initialVerificationChecks, sendEmailVerification, verifyCode, verifyEmailCode, submissionForm, getallWforms, getNotifs, getAllNotifs, createNotifs, deleteNotifs, deleteANotifs} = require('../controllers/wformController');
 
 
 router.post('/start-verification',   initialVerificationChecks);
@@ -10,6 +10,11 @@ router.post('/submit-form',  submissionForm);
 router.get('/all-forms', getallWforms)
 router.post('/send-email-verification', sendEmailVerification);
 router.post('/verify-email-code', verifyEmailCode);
+router.post('/create-notifs',  createNotifs);
+router.get('/get-notifs', getNotifs)
+router.get('/get-all-notifs', getAllNotifs,)
+router.delete('/delete-notifs',  deleteNotifs);
+router.delete('/:id', deleteANotifs)
 
 
 module.exports = router;
