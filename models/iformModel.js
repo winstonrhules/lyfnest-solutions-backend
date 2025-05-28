@@ -2,11 +2,7 @@ const mongoose = require('mongoose'); // Erase if already required
 
 // Declare the Schema of the Mongo model
 var iformSchema = new mongoose.Schema({
-    // firstName: {
-    //     type: String,
-    //     required: true,
-    //     trim: true,
-    //   },
+
 
     firstName: {
       type: String,
@@ -15,12 +11,7 @@ var iformSchema = new mongoose.Schema({
       match: [/^[A-Za-z\s'-]+$/, "Only letters, spaces, apostrophes, and hyphens allowed"]
     },
 
-      // lastName: {
-      //   type: String,
-      //   required: true,
-      //   trim: true,
-      // },
-
+      
       lastName: {
         type: String,
         required: true,
@@ -28,14 +19,7 @@ var iformSchema = new mongoose.Schema({
         match: [/^[A-Za-z\s'-]+$/, "Only letters, spaces, apostrophes, and hyphens allowed"]
       },
 
-      // email: {
-      //   type: String,
-      //   required: true,
-      //   unique: true,
-      //   lowercase: true,
-      //   trim: true,
-      // },
-
+      
       email: {
         type: String,
         required: true,
@@ -74,7 +58,6 @@ var iformSchema = new mongoose.Schema({
         enum: [
           "Single",
           "Married",
-          "Divorced"
         ],
         required: true,
       },
@@ -88,7 +71,11 @@ var iformSchema = new mongoose.Schema({
         city: {
           type: String,
           required: [true, 'City is required'],
-          trim: true
+          trim: true,
+          match: [
+          /^[A-Za-z\s\-,.'()]+$/,
+          "Only letters, spaces, and basic punctuation allowed"
+        ]
         },
         zip: {
           type: String,
@@ -103,18 +90,61 @@ var iformSchema = new mongoose.Schema({
       },
       
       state: {
-        type: String,
-        required: [true, 'State is required'],
-        uppercase: true,
-        trim: true,
-        minlength: [2, 'State must be exactly 2 characters'],
-        maxlength: [2, 'State must be exactly 2 characters'],
-        validate: {
-          validator: function(v) {
-            return /^[A-Z]{2}$/.test(v);
-          },
-          message: props => `${props.value} is not a valid state code!`
-        }
+          type: String,
+        enum: [
+          "AL",
+          "AK",
+          "AR",
+          "CA",
+          "CO",
+         "CT",
+          "DE",
+          "DC",
+          "FL",
+          "GA",
+         "HI",
+          "ID",
+          "IL",
+          "IN",
+          "IA",
+        "KS",
+        "KY",
+        "LA",
+        "ME",
+        "MD",
+        "MA",
+       "MI",
+        "MN",
+        "MS",
+        "MO",
+        "MT",
+       "NE",
+        "NV",
+       "NH",
+        "NJ",
+        "NM",
+        "NY",
+       "NC",
+       "ND",
+       "OH",
+       "OK",
+       "OR",
+        "PA",
+       "RI",
+        "SC",
+        "SD",
+        "TN",
+        "TX",
+       "UT",
+       "VT",
+        "VA",
+        "WA",
+       "WV",
+        "WI",
+       "WY",
+        "AZ",
+        ],
+        required: true,
       },
     
 
@@ -131,10 +161,11 @@ var iformSchema = new mongoose.Schema({
       annualIncome: {
         type: String,
         enum: [
-          "Under $50k",
-          "50k-100k",
-           "100k-150k",
-           "Over $150k"
+           "Below $50K",
+           "$50K - $100K",
+           "$100K - $200K",
+           "$200K - $500K",
+           "Above $500K"
         ],
         required: true,
       },
@@ -167,20 +198,19 @@ var iformSchema = new mongoose.Schema({
         enum: [
           "Flexible Premium",
           "Fixed Premium",
-          "Not Sure"
         ],
         required: true,
       },
 
       coverage: {
-        type: String,
-        enum: ["ASAP", "1-3 months", "3-6 months", "No rush"],
-        required: true,                
-      },
+             type: String,
+             enum: ["Immediately", "Within 1 month", "Within 3 months"],
+             required: true,             
+           },
 
-      contactMethod: {
+        contactMethod: {
         type: String,
-        enum: ["Phone", "Email", "Text"],
+        enum: ["phone", "email", "sms"],
         required: true,
       },
 
@@ -189,6 +219,15 @@ var iformSchema = new mongoose.Schema({
         enum: ["morning", "afternoon", "evening"],
         required: true,
       },
+
+      Comments: {
+       type: String,
+       trim: true,
+       match: [
+                /^[A-Za-z\s\-,.'()]+$/,
+                "Only letters, spaces, and basic punctuation allowed"
+              ],
+            },
       
       emailVerified: { type: Boolean, default: false },
       emailVerification: { 

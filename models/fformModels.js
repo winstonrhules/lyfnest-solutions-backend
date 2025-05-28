@@ -55,7 +55,6 @@ var fformSchema = new mongoose.Schema({
         enum: [
           "Single",
           "Married",
-          "Divorced"
         ],
         required: true,
       },
@@ -69,7 +68,11 @@ var fformSchema = new mongoose.Schema({
         city: {
           type: String,
           required: [true, 'City is required'],
-          trim: true
+          trim: true,
+           match: [
+          /^[A-Za-z\s\-,.'()]+$/,
+          "Only letters, spaces, and basic punctuation allowed"
+        ]
         },
         zip: {
           type: String,
@@ -83,58 +86,101 @@ var fformSchema = new mongoose.Schema({
         }
       },
       
-      state: {
-        type: String,
-        required: [true, 'State is required'],
-        uppercase: true,
-        trim: true,
-        minlength: [2, 'State must be exactly 2 characters'],
-        maxlength: [2, 'State must be exactly 2 characters'],
-        validate: {
-          validator: function(v) {
-            return /^[A-Z]{2}$/.test(v);
-          },
-          message: props => `${props.value} is not a valid state code!`
-        }
+      // state: {
+      //   type: String,
+      //   required: [true, 'State is required'],
+      //   uppercase: true,
+      //   trim: true,
+      //   minlength: [2, 'State must be exactly 2 characters'],
+      //   maxlength: [2, 'State must be exactly 2 characters'],
+      //   validate: {
+      //     validator: function(v) {
+      //       return /^[A-Z]{2}$/.test(v);
+      //     },
+      //     message: props => `${props.value} is not a valid state code!`
+      //   }
+      // },
+       state: {
+          type: String,
+        enum: [
+          "AL",
+          "AK",
+          "AR",
+          "CA",
+          "CO",
+         "CT",
+          "DE",
+          "DC",
+          "FL",
+          "GA",
+         "HI",
+          "ID",
+          "IL",
+          "IN",
+          "IA",
+        "KS",
+        "KY",
+        "LA",
+        "ME",
+        "MD",
+        "MA",
+       "MI",
+        "MN",
+        "MS",
+        "MO",
+        "MT",
+       "NE",
+        "NV",
+       "NH",
+        "NJ",
+        "NM",
+        "NY",
+       "NC",
+       "ND",
+       "OH",
+       "OK",
+       "OR",
+        "PA",
+       "RI",
+        "SC",
+        "SD",
+        "TN",
+        "TX",
+       "UT",
+       "VT",
+        "VA",
+        "WA",
+       "WV",
+        "WI",
+       "WY",
+        "AZ",
+        ],
+        required: true,
       },
     
-
+    
       coverageAmount: {
         type: String,
-        enum: ["$5,000", "$10,000", "$25,000","$50,000"],
+        enum: ["$5,000", "$10,000", "$20,000",  "$30,000", "$40,000", "$50,000"],
         required: true,
       },
 
-      monthlyBudget: {
-        type: Number,
+     monthlyBudget: {
+        type: String,
+        enum: ["Under $50", "$50-$100", "Above $100"],
         required: true,
-        min: [1, "Monthly Budget cannot be negative"],
-        validate: {
-        validator: Number.isInteger,
       },
-    },
-
+    
       tobacco: {
         type: String,
         enum: ["yes", "no"],
         required: true,
       },
 
-      contactMethod: {
-        type: String,
-        enum: ["Phone", "Email", "Text"],
-        required: true,
-      },
-
-      contactTime: {
-        type: String,
-        enum: ["morning", "afternoon", "evening"],
-        required: true,
-      },
-
+      
       coverageTimeline: {
         type: String,
-        enum: ["ASAP", "Within 1 Month", "Within 3 Months", "Exploring Options"],
+         enum: ["Immediately", "Within 1 month", "Within 3 months"],
         required: true,
       },
 
@@ -144,7 +190,6 @@ var fformSchema = new mongoose.Schema({
           "Excellent",
           "Good",
           "Fair",
-          "Poor",
         ],
         required: true,
       },
@@ -161,6 +206,28 @@ var fformSchema = new mongoose.Schema({
       insurancePolicy: {
         type: String,
         enum: ["yes", "no"],
+      },
+
+      contactMethod: {
+        type: String,
+      enum: ["phone", "email", "sms"],
+        required: true,
+      },
+
+      contactTime: {
+        type: String,
+        enum: ["morning", "afternoon", "evening"],
+        required: true,
+      },
+
+
+       Comments: {
+        type: String,
+        trim: true,
+        match: [
+          /^[A-Za-z\s\-,.'()]+$/,
+          "Only letters, spaces, and basic punctuation allowed"
+        ],
       },
 
       verification:{

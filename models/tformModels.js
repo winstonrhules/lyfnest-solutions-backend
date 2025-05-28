@@ -2,24 +2,7 @@ const mongoose = require('mongoose'); // Erase if already required
 
 // Declare the Schema of the Mongo model
 var tformSchema = new mongoose.Schema({
-    // firstName: {
-    //     type: String,
-    //     required: true,
-    //     trim: true,
-    //   },
-
-    //   lastName: {
-    //     type: String,
-    //     required: true,
-    //     trim: true,
-    //   },
-
-    //   email: {
-    //     type: String,
-    //     required: true,
-    //     unique: true,
-    //     trim: true,
-    //   },
+   
 
     firstName: {
       type: String,
@@ -72,7 +55,6 @@ var tformSchema = new mongoose.Schema({
         enum: [
           "Single",
           "Married",
-          "Divorced"
         ],
         required: true,
       },
@@ -87,7 +69,11 @@ var tformSchema = new mongoose.Schema({
         city: {
           type: String,
           required: [true, 'City is required'],
-          trim: true
+          trim: true,
+          match: [
+          /^[A-Za-z\s\-,.'()]+$/,
+          "Only letters, spaces, and basic punctuation allowed"
+        ]
         },
         zip: {
           type: String,
@@ -101,21 +87,99 @@ var tformSchema = new mongoose.Schema({
         }
       },
       
-      state: {
-        type: String,
-        required: [true, 'State is required'],
-        uppercase: true,
-        trim: true,
-        minlength: [2, 'State must be exactly 2 characters'],
-        maxlength: [2, 'State must be exactly 2 characters'],
-        validate: {
-          validator: function(v) {
-            return /^[A-Z]{2}$/.test(v);
-          },
-          message: props => `${props.value} is not a valid state code!`
-        }
+      // state: {
+      //   type: String,
+      //   required: [true, 'State is required'],
+      //   uppercase: true,
+      //   trim: true,
+      //   minlength: [2, 'State must be exactly 2 characters'],
+      //   maxlength: [2, 'State must be exactly 2 characters'],
+      //   validate: {
+      //     validator: function(v) {
+      //       return /^[A-Z]{2}$/.test(v);
+      //     },
+      //     message: props => `${props.value} is not a valid state code!`
+      //   }
+      // },
+       state: {
+          type: String,
+        enum: [
+          "AL",
+          "AK",
+          "AR",
+          "CA",
+          "CO",
+         "CT",
+          "DE",
+          "DC",
+          "FL",
+          "GA",
+         "HI",
+          "ID",
+          "IL",
+          "IN",
+          "IA",
+        "KS",
+        "KY",
+        "LA",
+        "ME",
+        "MD",
+        "MA",
+       "MI",
+        "MN",
+        "MS",
+        "MO",
+        "MT",
+       "NE",
+        "NV",
+       "NH",
+        "NJ",
+        "NM",
+        "NY",
+       "NC",
+       "ND",
+       "OH",
+       "OK",
+       "OR",
+        "PA",
+       "RI",
+        "SC",
+        "SD",
+        "TN",
+        "TX",
+       "UT",
+       "VT",
+        "VA",
+        "WA",
+       "WV",
+        "WI",
+       "WY",
+        "AZ",
+        ],
+        required: true,
       },
     
+      occupation: {
+        type: String,
+        required: true,
+        trim: true,
+        match: [
+          /^[A-Za-z\s\-,.'()]+$/,
+          "Only letters, spaces, and basic punctuation allowed"
+        ]
+      },
+
+       annualIncome: {
+        type: String,
+        enum: [
+           "Below $50K",
+           "$50K - $100K",
+           "$100K - $200K",
+           "$200K - $500K",
+           "Above $500K"
+        ],
+        required: true,
+      },
 
 
       coverageAmount: {
@@ -127,6 +191,11 @@ var tformSchema = new mongoose.Schema({
     }
   },
 
+   monthlyBudget: {
+        type: String,
+        enum: ["Under $50", "$50-$100", "Above $100"],
+        required: true,
+      },
 
       preferredTerm: {
         type: String,
@@ -150,7 +219,6 @@ var tformSchema = new mongoose.Schema({
           "Excellent",
           "Good",
           "Average",
-          "Below Average",
         ],
         required: true,
       },
@@ -164,25 +232,6 @@ var tformSchema = new mongoose.Schema({
         ]
       },
 
-      occupation: {
-        type: String,
-        required: true,
-        trim: true,
-        match: [
-          /^[A-Za-z\s\-,.'()]+$/,
-          "Only letters, spaces, and basic punctuation allowed"
-        ]
-      },
-
-      annualIncome: {
-        type: Number,
-        required: true,
-        min: [1, "Annual Income cannot be negative"],
-        validate: {
-        validator: Number.isInteger,
-      }
-    },
-     
       dependents: {
         type: String,
         enum: [
@@ -200,9 +249,15 @@ var tformSchema = new mongoose.Schema({
         required: true,
       },
 
+       permanentCoverageOptions: {
+        type: String,
+        enum: ["yes", "no"],
+        required: true,
+      },
+
       contactMethod: {
         type: String,
-        enum: ["Phone", "Email", "Text"],
+        enum: ["phone", "email", "sms"],
         required: true,
       },
 
@@ -212,11 +267,15 @@ var tformSchema = new mongoose.Schema({
         required: true,
       },
 
-      permanentCoverageOptions: {
+       Comments: {
         type: String,
-        enum: ["yes", "no"],
-        required: true,
+        trim: true,
+        match: [
+          /^[A-Za-z\s\-,.'()]+$/,
+          "Only letters, spaces, and basic punctuation allowed"
+        ],
       },
+     
 
       verification:{
         type:mongoose.Schema.Types.ObjectId,

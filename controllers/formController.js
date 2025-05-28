@@ -6,6 +6,7 @@ const crypto = require('crypto');
 const nodemailer = require('nodemailer');
 const EmailVerification = require('../models/emailVerificationsModels');
 const Notification = require('../models/notificationModels');
+const User = require("../models/userModels");
 
 const client = twilio(
   process.env.TWILIO_SID, 
@@ -220,6 +221,86 @@ if (dobDate > cutoffDate) {
  
 
   await newForm.save();
+  try{
+  await transporter.sendMail({
+      to: email,
+      subject: 'Form Submission Confirmation',
+        text: `Thank you for submitting your form to LyfNest Solutions!\n\nWe've received your information and will contact you within 24-48 hours. Please do not reply to this automated message.\n\nIf you have urgent questions, contact support at ${process.env.SUPPORT_EMAIL}`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #1a237e;">Submission Confirmed</h2>
+        <p>Thank you for submitting your form to <strong>LyfNest Solutions</strong>!</p>
+        <p>We've received your information and will contact you within 24-48 hours.</p>
+        
+        <div style="background:  #f5f5f5; padding: 20px; margin: 20px 0;">
+          Contact our support team at <a href="mailto:${ process.env.EMAIL_USER}">${ process.env.EMAIL_USER}</a></p>
+        </div>
+
+        <p style="color: #616161;">
+          <strong>Please note:</strong>
+          <ul>
+            <li>This is an automated message - please do not reply</li>
+            <li>We'll contact you using your preferred method</li>
+          </ul>
+        </p>
+      </div>
+          `
+  });
+  res.status(200).json({ message: 'Confirmation email sent'});
+ }catch(mailError){
+  console.error("error sending mail", mailError)
+  return res.status(500).json({ error: ' Failed to send Confirmation email' });
+ }
+ 
+// In your submissionForm controller (emailback.txt), modify the admin notification section:
+
+// After user confirmation email
+try {
+  // Get all admin emails from DB
+  const admins = await User.find({ role: "admin" }).select("email -_id");
+  
+  if (admins.length > 0) {
+    const adminEmails = admins.map(admin => admin.email);
+    
+    await transporter.sendMail({
+      bcc: adminEmails, // Use BCC to preserve privacy
+      subject: '🚨 New Form Submission Alert',
+      text: `New submission from ${formData.firstName} ${formData.lastName} (${email})\n\nReview in admin panel.`,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <h2 style="color: #dc3545;">NEW SUBMISSION ALERT</h2>
+          <p><strong>User:</strong> ${formData.firstName} ${formData.lastName}</p>
+          <p><strong>Email:</strong> ${email}</p>
+          <p><strong>Submitted At:</strong> ${new Date().toLocaleString()}</p>
+          
+          <div style="background: #f8d7da; padding: 15px; margin: 20px 0;">
+            <p style="margin: 0;">
+              <a href="${process.env.ADMIN_PORTAL_URL}" 
+                 style="background: #dc3545; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
+                REVIEW SUBMISSION
+              </a>
+            </p>
+          </div>
+
+          <p style="color: #6c757d;">
+            <strong>Quick Details:</strong>
+            <ul>
+              <li>Phone: ${formData.phoneNumber}</li>
+              <li>Primary Goal: ${formData.primaryGoal}</li>
+              <li>Requested Coverage: ${formData.coverageType.join(', ')}</li>
+              <li>Submission ID: ${newForm._id}</li>
+            </ul>
+          </p>
+        </div>
+      `
+    });
+
+     res.status(200).json({ message: `Admin alerts sent to ${adminEmails.length} recipients`});
+  }
+} catch (adminEmailError) {
+  return res.status(500).json({ error: 'Admin alerts failed', details: adminEmailError.message });
+}
+
 
    // Optional: Send confirmation SMS
   //  await client.messages.create({

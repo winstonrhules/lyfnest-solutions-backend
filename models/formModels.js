@@ -55,7 +55,6 @@ var formSchema = new mongoose.Schema({
         enum: [
           "Single",
           "Married",
-          "Divorced"
         ],
         required: true,
       },
@@ -77,7 +76,11 @@ var formSchema = new mongoose.Schema({
         city: {
           type: String,
           required: [true, 'City is required'],
-          trim: true
+          trim: true,
+          match: [
+          /^[A-Za-z\s\-,.'()]+$/,
+          "Only letters, spaces, and basic punctuation allowed"
+        ]
         },
         zip: {
           type: String,
@@ -92,18 +95,61 @@ var formSchema = new mongoose.Schema({
       },
       
       state: {
-        type: String,
-        required: [true, 'State is required'],
-        uppercase: true,
-        trim: true,
-        minlength: [2, 'State must be exactly 2 characters'],
-        maxlength: [2, 'State must be exactly 2 characters'],
-        validate: {
-          validator: function(v) {
-            return /^[A-Z]{2}$/.test(v);
-          },
-          message: props => `${props.value} is not a valid state code!`
-        }
+          type: String,
+        enum: [
+          "AL",
+          "AK",
+          "AR",
+          "CA",
+          "CO",
+         "CT",
+          "DE",
+          "DC",
+          "FL",
+          "GA",
+         "HI",
+          "ID",
+          "IL",
+          "IN",
+          "IA",
+        "KS",
+        "KY",
+        "LA",
+        "ME",
+        "MD",
+        "MA",
+       "MI",
+        "MN",
+        "MS",
+        "MO",
+        "MT",
+       "NE",
+        "NV",
+       "NH",
+        "NJ",
+        "NM",
+        "NY",
+       "NC",
+       "ND",
+       "OH",
+       "OK",
+       "OR",
+        "PA",
+       "RI",
+        "SC",
+        "SD",
+        "TN",
+        "TX",
+       "UT",
+       "VT",
+        "VA",
+        "WA",
+       "WV",
+        "WI",
+       "WY",
+        "AZ",
+        ],
+        required: true,
       },
     
 
@@ -155,6 +201,18 @@ var formSchema = new mongoose.Schema({
         ]
       },
 
+       annualIncome: {
+        type: String,
+        enum: [
+           "Below $50K",
+           "$50K - $100K",
+           "$100K - $200K",
+           "$200K - $500K",
+           "Above $500K"
+        ],
+        required: true,
+      },
+
       consideredInsurance: {
         type: String,
         enum: ["yes", "no"],
@@ -181,24 +239,26 @@ var formSchema = new mongoose.Schema({
       },
       premiumType: {
         type: String,
-        enum: ["flexible", "fixed", "not-sure"],
+        enum: ["flexible", "fixed"],
         required: true,
       },
       coverageTimeline: {
         type: String,
-        enum: ["asap", "1-3-months", "3-6-months", "no-rush"],
+        enum: ["Immediately", "Within 1 month", "Within 3 months"],
         required: true,
       },
+
       monthlyBudget: {
         type: String,
-        enum: ["under-50", "50-100", "100-200", "over-200"],
+        enum: ["Under $50", "$50-$100", "Above $100"],
         required: true,
       },
       contactMethod: {
         type: String,
-        enum: ["phone", "text"],
+        enum: ["phone", "email", "sms"],
         required: true,
       },
+
       contactTime: {
         type: String,
         enum: ["morning", "afternoon", "evening"],

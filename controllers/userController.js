@@ -178,65 +178,6 @@ const updatePassword= asyncHandler(async(req, res)=>{
 })
 
 
-
-
-// const forgotPassword= asyncHandler(async(req, res)=>{
-//   const {email}= req.body
-//   const user = await User.findOne({email:email});
-//   if(!user) throw new Error("Email is invalid")
-//   const token = await user.iscreatePasswordResetToken();
-//   await user.save()
-//   const resetUrls = `Hey, please follow this link to reset password<a href="http://127.00.1:5000/api/user/reset-password/${token}">Click Here</a>`
-//   const data ={
-//     to:email,
-//     subject:"Find the link attached",
-//     text:"Hey User",
-//     htm:resetUrls
-//   }
-//   sendEmail(data)
-//   res.json(token)
-// })
-
-// const resetPasswordToken= asyncHandler(async(req, res)=>{
-//   const {password}=req.body
-//   const {token}=req.params
- 
-//   const hashedToken = crypto.createHash("sha256").update(token).digest("hex")
-//   const user =await User.findOne({
-//     passwordResetToken:hashedToken,
-//     passwordResetTokenExpires:{$gt:Date.now()}
-//   })
-//   if(!user) throw new Error("Token is expired,Try again")
-//     user.password=password;
-//     user.passwordResetToken=undefined;
-//     user.passwordResetTokenExpires=undefined;
-//     await user.save()
-//  res.json(user)
-// })
-
-
-
-//  const handleRefreshToken = asyncHandler(async(req, res)=>{
-//   const cookie = req.cookies;
-//    if(!cookie?.refreshToken) throw new Error("No refreshToken in Cookies")
-//      const refreshToken = cookie.refreshToken
-//      const user = await User.findOne({refreshToken:refreshToken})
-//      if(!user) throw new Error("No refreshToken match in the Database")
-//         jwt.verify(refreshToken, process.env.JWT_PASS_SEC, (err, decoded)=>{
-//          if(err || user.id !== decoded.id){
-//             throw new Error("Something Went wrong with the refreshToken")         }
-//         const accessToken =  generateToken(user?._id)
-//         res.json({accessToken,  user: { 
-//           _id: user._id,
-//           email: user.email,
-//            role: user.role,
-//           firstname: user.firstname,
-//           lastname: user.lastname
-//          }})
-//      })
-       
-//  })
-
 const handleRefreshToken = asyncHandler(async (req, res) => {
    const { refreshToken } = req.cookies;
   
@@ -306,7 +247,5 @@ module.exports = {
      
      handleRefreshToken,
      logout,
-     /*forgotPassword,*/
-     /*resetPasswordToken,*/
- 
+    
     }
