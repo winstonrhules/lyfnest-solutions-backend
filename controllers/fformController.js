@@ -241,10 +241,9 @@ if (dobDate > cutoffDate) {
         </div>
             `
     });
-    res.status(200).json({ message: 'Confirmation email sent'});
+      res.status(200).json({ message: 'Confirmation email sent'});
    }catch(mailError){
-    console.error("error sending mail", mailError)
-    return res.status(500).json({ error: ' Failed to send Confirmation email' });
+    console.error("User Email Failed", mailError)
    }
    
   // In your submissionForm controller (emailback.txt), modify the admin notification section:
@@ -281,9 +280,9 @@ if (dobDate > cutoffDate) {
               <strong>Quick Details:</strong>
               <ul>
                 <li>Phone: ${formData.phoneNumber}</li>
-                <li>Primary Goal: ${formData.primaryGoal}</li>
-                <li>Requested Coverage: ${formData.coverageType.join(', ')}</li>
-                <li>Submission ID: ${newForm._id}</li>
+                <li>Monthly Budget: ${formData.monthlyBudget}</li>
+                <li>Coverage Amount : ${formData.coverageAmount}</li>
+                <li>Submission ID: ${newFform._id}</li>
               </ul>
             </p>
           </div>
@@ -292,10 +291,19 @@ if (dobDate > cutoffDate) {
   
        res.status(200).json({ message: `Admin alerts sent to ${adminEmails.length} recipients`});
     }
-  } catch (adminEmailError) {
-    return res.status(500).json({ error: 'Admin alerts failed', details: adminEmailError.message });
+ } catch (adminEmailError) {
+   console.error('Admin Email failed', adminEmailError);
   }
   
+
+ res.status(201).json({
+   message: 'Final Expense Form Submission  Successful', 
+   userEmail: userEmailSent ? "sent" : "failed",
+   adminAlert: admins.length > 0 ? "sent" : "No admins"
+   });
+  } catch(error){
+    res.status(500).json({ error: error.message });
+  }
 
    // Optional: Send confirmation SMS
   //  await client.messages.create({
@@ -304,14 +312,8 @@ if (dobDate > cutoffDate) {
   //    to: formData.phoneNumber,
   //  });
 
-  res.status(201).json({ message: 'Final Expense Life Insurance Form Submission successful' });
-
- } catch (error) {
-  console.error(error)
-  res.status(500).json({ error: error.message });
- }
-
 })
+
 
 const getallFforms = asyncHandler(async(req, res)=>{
   try{

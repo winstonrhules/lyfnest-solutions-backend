@@ -1,0 +1,25 @@
+User-agent: *
+# Block all admin-related paths
+Disallow: /login
+Disallow: /signup  
+Disallow: /dashboard
+Disallow: /team
+Disallow: /claims/
+Disallow: /api/
+
+# If you have public pages you want indexed, allow them:
+# Allow: /public-page
+# Allow: /about
+# Allow: /contact
+
+# Block common admin patterns
+Disallow: /*admin*
+Disallow: /*dashboard*
+Disallow: /*management*
+
+# Crawl delay (optional - slows down crawlers)
+Crawl-delay: 10
+
+# If you have a sitemap for public pages (optional):
+# Sitemap: https://yourdomain.com/sitemap.xml
+

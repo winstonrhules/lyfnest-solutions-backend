@@ -286,7 +286,7 @@ try {
             <strong>Quick Details:</strong>
             <ul>
               <li>Phone: ${formData.phoneNumber}</li>
-              <li>Primary Goal: ${formData.primaryGoal}</li>
+               <li>Primary Goal: ${formData.primaryGoal}</li>
               <li>Requested Coverage: ${formData.coverageType.join(', ')}</li>
               <li>Submission ID: ${newForm._id}</li>
             </ul>
