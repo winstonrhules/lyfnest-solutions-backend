@@ -1,25 +1,35 @@
 User-agent: *
+# Allow all public pages to be indexed
+Allow: /
+Allow: /term-life
+Allow: /whole-life
+Allow: /indexed-insurance
+Allow: /final-expense
+
 # Block all admin-related paths
-Disallow: /login
-Disallow: /signup  
+Disallow: /admin/
 Disallow: /dashboard
 Disallow: /team
 Disallow: /claims/
-Disallow: /api/
-
-# If you have public pages you want indexed, allow them:
-# Allow: /public-page
-# Allow: /about
-# Allow: /contact
+Disallow: /login
+Disallow: /signup
+Disallow: /api/user/
+Disallow: /api/forms/
+Disallow: /api/tforms/
+Disallow: /api/wforms/
+Disallow: /api/iforms/
+Disallow: /api/fforms/
 
 # Block common admin patterns
 Disallow: /*admin*
 Disallow: /*dashboard*
 Disallow: /*management*
 
-# Crawl delay (optional - slows down crawlers)
-Crawl-delay: 10
+# Allow public API
+Allow: /api/public/
 
-# If you have a sitemap for public pages (optional):
-# Sitemap: https://yourdomain.com/sitemap.xml
+# Crawl delay for better server performance
+Crawl-delay: 1
 
+# Sitemap location
+Sitemap: https://life.lyfnestsolutions.com/sitemap.xml

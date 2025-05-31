@@ -81,20 +81,35 @@ app.use('/api/iforms', iformRouter)
 app.use('/api/fforms', fformRouter)
 
 // Serve static files from build directory
-app.use(express.static(path.join(__dirname, '../lyfnest-solutions-admin/build')));
+app.use(express.static(path.join(__dirname, '../lyfnest-solutions-admin/dist')));
 
 // More secure catch-all route - only serve admin app for specific routes
-const adminRoutes = ['/', '/login', '/signup', '/dashboard', '/team', '/claims'];
-app.get('*', (req, res, next) => {
-  const isAdminRoute = adminRoutes.some(route => 
-    req.path === route || req.path.startsWith(route + '/')
-  );
-  
-  if (isAdminRoute) {
-    res.sendFile(path.join(__dirname, '../lyfnest-solutions-admin/build', 'index.html'));
-  } else {
-    next(); // Let it fall through to 404
-  }
+app.use('/admin', express.static(path.join(__dirname, '../lyfnest-solutions-admin/dist')));
+app.use(express.static(path.join(__dirname, '../lyfnest-solutions/dist')));
+
+// Route handling
+// Admin routes (protected from indexing)
+app.get('/admin/*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../lyfnest-solutions-admin/dist', 'index.html'));
+});
+
+// Admin dashboard routes (for backward compatibility)
+const adminRoutes = ['/dashboard', '/team', '/claims', '/login', '/signup'];
+app.get(adminRoutes, (req, res) => {
+  res.sendFile(path.join(__dirname, '../lyfnest-solutions-admin/dist', 'index.html'));
+});
+
+app.get('/dashboard/*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../lyfnest-solutions-admin/dist', 'index.html'));
+});
+
+app.get('/claims/*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../lyfnest-solutions-admin/dist', 'index.html'));
+});
+
+// Public routes (SEO-friendly)
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../lyfnest-solutions/dist', 'index.html'));
 });
 
 // Add security headers using Helmet
