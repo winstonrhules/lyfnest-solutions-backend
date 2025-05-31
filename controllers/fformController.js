@@ -216,6 +216,7 @@ if (dobDate > cutoffDate) {
   });
 
   await  newFform.save();
+  let userEmailSent=false
   try{
     await transporter.sendMail({
         to: email,
@@ -241,20 +242,17 @@ if (dobDate > cutoffDate) {
         </div>
             `
     });
-      res.status(200).json({ message: 'Confirmation email sent'});
-   }catch(mailError){
-    console.error("User Email Failed", mailError)
+      userEmailSent=true
+   }catch(userMailError){
+    console.error("User Email Confirmation Failed", userMailError)
    }
    
-  // In your submissionForm controller (emailback.txt), modify the admin notification section:
-  
-  // After user confirmation email
-  try {
-    // Get all admin emails from DB
-    const admins = await User.find({ role: "admin" }).select("email -_id");
-    
-    if (admins.length > 0) {
-      const adminEmails = admins.map(admin => admin.email);
+  let adminEmails = [];
+    try {
+      // Get all admin emails from DB
+      const admins = await User.find({ role: "admin" }).select("email -_id");
+         adminEmails = admins.map(admin => admin.email);
+         if (adminEmails.length > 0) {
       
       await transporter.sendMail({
         bcc: adminEmails, // Use BCC to preserve privacy
@@ -291,19 +289,20 @@ if (dobDate > cutoffDate) {
   
        res.status(200).json({ message: `Admin alerts sent to ${adminEmails.length} recipients`});
     }
- } catch (adminEmailError) {
-   console.error('Admin Email failed', adminEmailError);
+  } catch (adminEmailError) {
+    console.error('Admin Email failed', adminEmailError);
   }
-  
 
  res.status(201).json({
    message: 'Final Expense Form Submission  Successful', 
    userEmail: userEmailSent ? "sent" : "failed",
-   adminAlert: admins.length > 0 ? "sent" : "No admins"
+   adminAlert: adminEmails.length > 0 ? "sent" : "No admins"
    });
   } catch(error){
+    console.error("Submission Error", error.message)
     res.status(500).json({ error: error.message });
   }
+
 
    // Optional: Send confirmation SMS
   //  await client.messages.create({
