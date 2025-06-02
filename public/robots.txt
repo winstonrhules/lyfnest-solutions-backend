@@ -1,35 +1,21 @@
 User-agent: *
-# Allow all public pages to be indexed
 Allow: /
 Allow: /term-life
 Allow: /whole-life
 Allow: /indexed-insurance
 Allow: /final-expense
+Allow: /privacy
+Allow: /term-use
+Allow: /compliance
+Allow: /thank-you
 
-# Block all admin-related paths
 Disallow: /admin/
 Disallow: /dashboard
 Disallow: /team
-Disallow: /claims/
+Disallow: /claims
 Disallow: /login
 Disallow: /signup
-Disallow: /api/user/
-Disallow: /api/forms/
-Disallow: /api/tforms/
-Disallow: /api/wforms/
-Disallow: /api/iforms/
-Disallow: /api/fforms/
+Disallow: /api/
 
-# Block common admin patterns
-Disallow: /*admin*
-Disallow: /*dashboard*
-Disallow: /*management*
-
-# Allow public API
-Allow: /api/public/
-
-# Crawl delay for better server performance
 Crawl-delay: 1
-
-# Sitemap location
 Sitemap: https://life.lyfnestsolutions.com/sitemap.xml

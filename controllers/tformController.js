@@ -270,8 +270,8 @@ if (dobDate > cutoffDate) {
             
             <div style="background: #f8d7da; padding: 15px; margin: 20px 0;">
               <p style="margin: 0;">
-                <a href="${process.env.ADMIN_PORTAL_URL}" 
-                   style="background: #dc3545; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
+                A new form submission has been received. Please review it in the admin panel.
+                style="background: #dc3545; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
                   REVIEW SUBMISSION
                 </a>
               </p>
@@ -285,7 +285,7 @@ if (dobDate > cutoffDate) {
                 <li>Coverage Amount: ${formData.coverageAmount}</li>
                 <li>Submission ID: ${newTform._id}</li>
               </ul>
-            </p>
+            </p> 
           </div>
         `
       });
