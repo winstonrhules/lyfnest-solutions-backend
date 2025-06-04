@@ -272,11 +272,11 @@
 //     console.log(`Server running at PORT ${PORT}`)
 // })
 
-
+const dotenv = require('dotenv').config();
 const express = require('express');
 const DBconnect = require('./config/DBconnect');
 const app = express();
-const dotenv = require('dotenv').config();
+
 const path = require('path');
 const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
