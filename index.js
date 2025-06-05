@@ -328,8 +328,8 @@ app.use(express.urlencoded({ extended: true }));
 app.use(corsConfig);
 
 // 4. Serve Static Files
-const publicDistPath = path.join(__dirname, '../lyfnest-solutions/dist');
-const adminDistPath = path.join(__dirname, '../lyfnest-solutions-admin/dist');
+const publicDistPath = path.join(__dirname, 'dist');
+const adminDistPath = path.join(__dirname, 'admin-dist');
 
 app.use(express.static(publicDistPath)); // Public site
 app.use('/admin', express.static(adminDistPath)); // Admin site under /admin
