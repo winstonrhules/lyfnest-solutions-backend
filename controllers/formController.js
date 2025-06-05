@@ -276,9 +276,9 @@ try {
           <div style="background: #f8d7da; padding: 15px; margin: 20px 0;">
             <p style="margin: 0;">
                  A new form submission has been received. Please review it in the admin panel.
-                 style="background: #dc3545; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
-                REVIEW SUBMISSION
-              </a>
+               <p style="background: #dc3545; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
+                  REVIEW SUBMISSION
+                </p>
             </p>
           </div>
 

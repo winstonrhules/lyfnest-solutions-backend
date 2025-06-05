@@ -379,30 +379,35 @@ app.get('/sitemap.xml', (req, res) => {
   res.type('application/xml')
   res.send(`<?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+
   <url>
     <loc>https://life.lyfnestsolutions.com/</loc>
     <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
+
   <url>
     <loc>https://life.lyfnestsolutions.com/term-life</loc>
     <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
+
   <url>
     <loc>https://life.lyfnestsolutions.com/whole-life</loc>
     <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
+
   <url>
     <loc>https://life.lyfnestsolutions.com/indexed-insurance</loc>
     <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
+
   <url>
     <loc>https://life.lyfnestsolutions.com/final-expense</loc>
     <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
@@ -410,23 +415,27 @@ app.get('/sitemap.xml', (req, res) => {
     <priority>0.8</priority>
   </url>
 
+  <url>
    <loc>https://life.lyfnestsolutions.com/privacy</loc>
    <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
+
   <url>
     <loc>https://life.lyfnestsolutions.com/term-use</loc>
     <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
+
   <url>
     <loc>https://life.lyfnestsolutions.com/compliance</loc>
     <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
   </url>
+
    <url>
     <loc>https://life.lyfnestsolutions.com/thank-you</loc>
     <lastmod>${new Date().toISOString().split('T')[0]}</lastmod>
