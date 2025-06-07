@@ -1,6 +1,6 @@
 const cors = require('cors')
 const corsOption = {
-    origin:['https://life.lyfnestsolutions.com',  'http://localhost:5174', 'https://natbetadmin.lyfnestsolutions.com',  process.env.CORS_ORIGIN_ADMIN],
+    origin:[process.env.CORS_ORIGIN_FRONT,  process.env.CORS_ORIGIN_LFRONT, process.env.CORS_ORIGIN_ADMIN,  process.env.CORS_ORIGIN_LADMIN],
     credentials:true
 }
 
