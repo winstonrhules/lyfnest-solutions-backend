@@ -192,7 +192,7 @@ var wformSchema = new mongoose.Schema({
       financialGoal: {
         type: [String],
         required: true,
-        enum: ["Protecting my family’s financial future", "Saving for education", " Preparing for retirement", "Reducing tax liabilities", "Accessing funds for emergencies or opportunities", "Other(please specify)"],
+        enum: ["Protecting my family’s financial future", "Saving for education", "Preparing for retirement", "Reducing tax liabilities", "Accessing funds for emergencies or opportunities", "Other(please specify)"],
       },
 
       otherSpecify: {
