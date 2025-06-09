@@ -88,20 +88,6 @@ var wformSchema = new mongoose.Schema({
         }
       },
       
-      // state: {
-      //   type: String,
-      //   required: [true, 'State is required'],
-      //   uppercase: true,
-      //   trim: true,
-      //   minlength: [2, 'State must be exactly 2 characters'],
-      //   maxlength: [2, 'State must be exactly 2 characters'],
-      //   validate: {
-      //     validator: function(v) {
-      //       return /^[A-Z]{2}$/.test(v);
-      //     },
-      //     message: props => `${props.value} is not a valid state code!`
-      //   }
-      // },
         state: {
           type: String,
         enum: [
