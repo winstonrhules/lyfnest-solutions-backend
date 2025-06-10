@@ -8,10 +8,10 @@ const EmailVerification = require('../models/emailVerificationsModels');
 const Notification = require('../models/notificationModels');
 const User = require("../models/userModels");
 
-const client = twilio(
-  process.env.TWILIO_SID, 
-  process.env.TWILIO_AUTH_TOKEN
-);
+// const client = twilio(
+//   process.env.TWILIO_SID, 
+//   process.env.TWILIO_AUTH_TOKEN
+// );
 
 const transporter = nodemailer.createTransport({
   service: process.env.EMAIL_SERVICE,
@@ -217,10 +217,6 @@ const verifyCode = asyncHandler(async (req, res) => {
     res.status(500).json({ error: 'Verification failed' });
   }
 });
-
-
-
-
 
 
 // Verify Email Code
