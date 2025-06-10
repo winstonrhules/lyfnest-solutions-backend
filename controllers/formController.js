@@ -23,24 +23,60 @@ const transporter = nodemailer.createTransport({
 });
 
 
-const initialVerificationChecks = asyncHandler (async (req, res)=>{
+// const initialVerificationChecks = asyncHandler (async (req, res)=>{
+//   try {
+//     const { phoneNumber } = req.body;
+    
+//     // Validate E.164 format
+//     const verification = await client.verify.v2.services(process.env.TWILIO_SERVICE_SID)
+//       .verifications
+//       .create({ to: phoneNumber,  channel: 'sms' });
+
+//     // Create verification record
+//     const newVerification = new Verification({
+//       phoneNumber,
+//       twilioSid: verification.sid,
+//       expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
+//     });
+
+//     await newVerification.save();
+//     console.log("Verification record saved", newVerification)
+    
+//     res.status(200).json({ 
+//       message: 'Verification code sent',
+//       expiresAt: newVerification.expiresAt
+//     });
+
+//   } catch (error) {
+//     console.error("database record saved", error.message)
+//     res.status(500).json({ error: 'Failed to start verification' });
+//   }
+// })
+
+const initialVerificationChecks = asyncHandler(async (req, res) => {
   try {
     const { phoneNumber } = req.body;
     
-    // Validate E.164 format
-    const verification = await client.verify.v2.services(process.env.TWILIO_SERVICE_SID)
-      .verifications
-      .create({ to: phoneNumber,  channel: 'sms' });
+    // Generate your own 6-digit code
+    const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+    
+    // Send SMS with custom message using Messages API
+    const message = await client.messages.create({
+      body: `Your Lyfnest Solutions verification code is: ${verificationCode}. Please do not share this number.`,
+      from: process.env.TWILIO_PHONE_NUMBER, // Your Twilio phone number
+      to: phoneNumber
+    });
 
-    // Create verification record
+    // Create verification record (store the code you generated)
     const newVerification = new Verification({
       phoneNumber,
-      twilioSid: verification.sid,
+      code: verificationCode, // Store your generated code
+      twilioSid: message.sid,
       expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
     });
 
     await newVerification.save();
-    console.log("Verification record saved", newVerification)
+    console.log("Verification record saved", newVerification);
     
     res.status(200).json({ 
       message: 'Verification code sent',
@@ -48,10 +84,14 @@ const initialVerificationChecks = asyncHandler (async (req, res)=>{
     });
 
   } catch (error) {
-    console.error("database record saved", error.message)
+    console.error("Verification error", error.message);
     res.status(500).json({ error: 'Failed to start verification' });
   }
-})
+});
+
+
+
+
 
 // Send Email Verification Code
 const sendEmailVerification = asyncHandler(async (req, res) => {
@@ -96,7 +136,48 @@ const sendEmailVerification = asyncHandler(async (req, res) => {
   res.status(200).json({ message: 'Verification email sent', expiresAt });
 });
 
-const verifyCode = asyncHandler(async(req, res)=>{
+
+// const verifyCode = asyncHandler(async(req, res)=>{
+//   try {
+//     const { phoneNumber, code } = req.body;
+    
+//     // Check verification attempts
+//     const verification = await Verification.findOne({
+//       phoneNumber,
+//       status: 'pending'
+//     });
+
+//     if (!verification || verification.attempts >= 3) {
+//       return res.status(400).json({ error: 'Invalid verification request' });
+//     }
+
+//     // Verify with Twilio
+//     const check = await client.verify.v2.services(process.env.TWILIO_SERVICE_SID)
+//       .verificationChecks
+//       .create({ verificationSid: verification.twilioSid, code:code });
+
+//     if (check.status !== 'approved') {
+//       verification.attempts += 1;
+//       await verification.save();
+//       return res.status(400).json({ error: 'Invalid code' });
+//     }
+
+//     // Update verification status
+//     verification.status = 'verified';
+//     await verification.save();
+
+//     res.status(200).json({ 
+//       message: 'Verification successful',
+//       verificationId: verification._id 
+//     });
+
+//   } catch (error) {
+//     console.error("Verification Error", error.message)
+//     res.status(500).json({ error: 'Verification failed' });
+//   }
+// })  
+
+const verifyCode = asyncHandler(async (req, res) => {
   try {
     const { phoneNumber, code } = req.body;
     
@@ -110,12 +191,13 @@ const verifyCode = asyncHandler(async(req, res)=>{
       return res.status(400).json({ error: 'Invalid verification request' });
     }
 
-    // Verify with Twilio
-    const check = await client.verify.v2.services(process.env.TWILIO_SERVICE_SID)
-      .verificationChecks
-      .create({ verificationSid: verification.twilioSid, code:code });
+    // Check if code expired
+    if (new Date() > verification.expiresAt) {
+      return res.status(400).json({ error: 'Code expired' });
+    }
 
-    if (check.status !== 'approved') {
+    // Verify the code (compare with stored code instead of Twilio Verify)
+    if (verification.code !== code) {
       verification.attempts += 1;
       await verification.save();
       return res.status(400).json({ error: 'Invalid code' });
@@ -131,11 +213,15 @@ const verifyCode = asyncHandler(async(req, res)=>{
     });
 
   } catch (error) {
-    console.error("Verification Error", error.message)
+    console.error("Verification Error", error.message);
     res.status(500).json({ error: 'Verification failed' });
   }
+});
 
-})  
+
+
+
+
 
 // Verify Email Code
 const verifyEmailCode = asyncHandler(async (req, res) => {
