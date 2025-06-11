@@ -8,11 +8,11 @@ const verificationSchema = new mongoose.Schema({
     match: [/^\+?[1-9]\d{1,14}$/, 'Valid E.164 phone number required'] // E.164 format
   },
 
-  code: {
-    type: String,
-    required: true,
-    match: [/^\d{6}$/, 'Verification code must be a 6-digit number'] // 6-digit code
-  },
+  // code: {
+  //   type: String,
+  //   required: true,
+  //   match: [/^\d{6}$/, 'Verification code must be a 6-digit number'] // 6-digit code
+  // },
 
   status: {
     type: String,
