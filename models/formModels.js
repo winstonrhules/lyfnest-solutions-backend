@@ -29,6 +29,15 @@ var formSchema = new mongoose.Schema({
         "Invalid email format"
       ]
     },
+
+      phoneType: {
+       type: String,
+        enum: [
+          "mobile",
+          "landline",
+        ],
+        required: true,
+    },
   
       phoneNumber: {
         type: String,

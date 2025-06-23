@@ -28,12 +28,21 @@ var fformSchema = new mongoose.Schema({
         "Invalid email format"
       ]
     },
-
+    
+    phoneType: {
+       type: String,
+        enum: [
+          "mobile",
+          "landline",
+        ],
+        required: true,
+    },
       phoneNumber: {
         type: String,
         required: true,
         match: [/^\+\d{1,3}\d{6,14}$/, "Phone number must be 10 digits"],
       },
+
 
       Dob: {
         type: Date,

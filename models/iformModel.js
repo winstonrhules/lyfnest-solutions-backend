@@ -32,6 +32,15 @@ var iformSchema = new mongoose.Schema({
         ]
       },
 
+        phoneType: {
+       type: String,
+        enum: [
+          "mobile",
+          "landline",
+        ],
+        required: true,
+    },
+
       phoneNumber: {
         type: String,
         required: true,

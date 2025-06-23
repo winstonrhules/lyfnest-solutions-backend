@@ -14,7 +14,7 @@ const tformRouter = require('./routes/tformRoutes');
 const wformRouter = require('./routes/wformRoutes');
 const iformRouter = require('./routes/iformRoutes');
 const fformRouter = require('./routes/fformRoutes');
-
+const appointemntRouter = require('./routes/appointmentRoutes');
 // Middleware
 const corsConfig = require('./middlewares/corsConfig');
 const robotsBlock = require('./middlewares/robotsHeader');
@@ -180,6 +180,7 @@ app.use('/api/tforms', tformRouter);
 app.use('/api/wforms', wformRouter);
 app.use('/api/iforms', iformRouter);
 app.use('/api/fforms', fformRouter);
+app.use('/api/appointments', appointemntRouter);
 
 // 6. Admin Routes - Serve Admin SPA
 const adminPaths = [

@@ -3,36 +3,44 @@ const Verification = require('../models/verificationModels');
 const Fform = require('../models/fformModels');
 const asyncHandler = require('express-async-handler')
 const crypto = require('crypto');
-const nodemailer = require('nodemailer');
+const sgMail = require('@sendgrid/mail'); 
 const EmailVerification = require('../models/emailVerificationsModels');
 const Notification = require('../models/notificationModels');
 const User = require("../models/userModels");
+
+sgMail.setApiKey(process.env.SENDGRID_API_KEY); 
 
 const client = twilio(
   process.env.TWILIO_SID, 
   process.env.TWILIO_AUTH_TOKEN
 );
 
-const transporter = nodemailer.createTransport({
-  service: process.env.EMAIL_SERVICE,
-  auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASSWORD
-  }
-});
+// const transporter = nodemailer.createTransport({
+//   service: process.env.EMAIL_SERVICE,
+//   auth: {
+//     user: process.env.EMAIL_USER,
+//     pass: process.env.EMAIL_PASSWORD
+//   }
+// });
 
 const initialVerificationChecks = asyncHandler (async (req, res)=>{
   try {
-    const { phoneNumber } = req.body;
+    const { phoneNumber, phoneType } = req.body;
+
+    if(!['mobile', 'landline'].includes(phoneType)){
+      return res.status(400).json({error:'invalid Phone Type'})
+    }
     
+    const channel = phoneType === 'landline'? 'call': 'sms'
     // Validate E.164 format
     const verification = await client.verify.v2.services(process.env.TWILIO_SERVICE_SID)
       .verifications
-      .create({ to: phoneNumber, channel: 'sms' });
+      .create({ to: phoneNumber, channel: channel });
 
     // Create verification record
     const newVerification = new Verification({
       phoneNumber,
+      phoneType,
       twilioSid: verification.sid,
       expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
     });
@@ -41,7 +49,7 @@ const initialVerificationChecks = asyncHandler (async (req, res)=>{
     console.log("Verification record saved", newVerification)
     
     res.status(200).json({ 
-      message: 'Verification code sent',
+      message: `Verification ${channel==='call' ? 'call' :'code'} sent`,
       expiresAt: newVerification.expiresAt
     });
 
@@ -63,33 +71,69 @@ const sendEmailVerification = asyncHandler(async (req, res) => {
     { upsert: true }
   );
 
-  await transporter.sendMail({
+    const msg = {
     to: email,
-     subject: 'Verify Your Email Address',
-      text: `LyfNest Solutions will NEVER proactively call or text you for this code. DO NOT share it.
-      Your verification code is: ${token}
-      This code is active for 10 minutes from the time of request.`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #1a237e;">Email Verification</h2>
-          <p>Your verification code is:</p>
-          <div style="background: #f5f5f5; padding: 20px; font-size: 24px; letter-spacing: 2px; margin: 20px 0;">
-            ${token}
-          </div>
-          <p style="color: #616161;">
-            <strong>Important:</strong>
-            <ul>
-              <li>This code expires in 10 minutes</li>
-              <li>Never share this code with anyone</li>
-              <li>If you didn't request this code, please contact support</li>
-            </ul>
-          </p>
+    from: process.env.SENDER_EMAIL, // Must be verified in SendGrid
+    subject: 'Verify Your Email Address',
+    text: `LyfNest Solutions will NEVER proactively call or text you for this code. DO NOT share it.
+    Your verification code is: ${token}
+    This code is active for 10 minutes from the time of request.`,
+    html: `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+        <h2 style="color: #1a237e;">Email Verification</h2>
+        <p>Your verification code is:</p>
+        <div style="background: #f5f5f5; padding: 20px; font-size: 24px; letter-spacing: 2px; margin: 20px 0;">
+          ${token}
         </div>
-          `
-  });
+        <p style="color: #616161;">
+          <strong>Important:</strong>
+          <ul>
+            <li>This code expires in 10 minutes</li>
+            <li>Never share this code with anyone</li>
+            <li>If you didn't request this code, please contact support</li>
+          </ul>
+        </p>
+      </div>`
+  };
 
-  res.status(200).json({ message: 'Verification email sent', expiresAt });
+  try {
+    await sgMail.send(msg);
+    res.status(200).json({ message: 'Verification email sent', expiresAt });
+  } catch (error) {
+    console.error('SendGrid error:', error.response?.body || error.message);
+    res.status(500).json({ error: 'Failed to send verification email' });
+  }
 });
+
+
+//   await transporter.sendMail({
+//     to: email,
+//      subject: 'Verify Your Email Address',
+//       text: `LyfNest Solutions will NEVER proactively call or text you for this code. DO NOT share it.
+//       Your verification code is: ${token}
+//       This code is active for 10 minutes from the time of request.`,
+//       html: `
+//         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+//           <h2 style="color: #1a237e;">Email Verification</h2>
+//           <p>Your verification code is:</p>
+//           <div style="background: #f5f5f5; padding: 20px; font-size: 24px; letter-spacing: 2px; margin: 20px 0;">
+//             ${token}
+//           </div>
+//           <p style="color: #616161;">
+//             <strong>Important:</strong>
+//             <ul>
+//               <li>This code expires in 10 minutes</li>
+//               <li>Never share this code with anyone</li>
+//               <li>If you didn't request this code, please contact support</li>
+//             </ul>
+//           </p>
+//         </div>
+//           `
+//   });
+
+//   res.status(200).json({ message: 'Verification email sent', expiresAt });
+// });
+
 
 
 const verifyCode = asyncHandler(async(req, res)=>{
@@ -218,90 +262,173 @@ if (dobDate > cutoffDate) {
   await  newFform.save();
   let userEmailSent=false
   try{
-    await transporter.sendMail({
+          const userMsg = {
         to: email,
+        from: process.env.SENDER_EMAIL,
         subject: 'Form Submission Confirmation',
-          text: `Thank you for submitting your form to LyfNest Solutions!\n\nWe've received your information and will contact you within 24-48 hours. Please do not reply to this automated message.\n\nIf you have urgent questions, contact support at ${process.env.SUPPORT_EMAIL}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h2 style="color: #1a237e;">Submission Confirmed</h2>
-          <p>Thank you for submitting your form to <strong>LyfNest Solutions</strong>!</p>
-          <p>We've received your information and will contact you within 24-48 hours.</p>
-          
-          <div style="background:  #f5f5f5; padding: 20px; margin: 20px 0;">
-            Contact our support team at <a href="mailto:${ process.env.EMAIL_USER}">${ process.env.EMAIL_USER}</a></p>
-          </div>
-  
-          <p style="color: #616161;">
-            <strong>Please note:</strong>
-            <ul>
-              <li>This is an automated message - please do not reply</li>
-              <li>We'll contact you using your preferred method</li>
-            </ul>
-          </p>
-        </div>
-            `
-    });
-      userEmailSent=true
-   }catch(userMailError){
-    console.error("User Email Confirmation Failed", userMailError)
-   }
-   
-  let adminEmails = [];
-    try {
-      // Get all admin emails from DB
-      const admins = await User.find({ role: "admin" }).select("email -_id");
-         adminEmails = admins.map(admin => admin.email);
-         if (adminEmails.length > 0) {
-      
-      await transporter.sendMail({
-        bcc: adminEmails, // Use BCC to preserve privacy
-        subject: '🚨 New Form Submission Alert',
-        text: `New submission from ${formData.firstName} ${formData.lastName} (${email})\n\nReview in admin panel.`,
+        text: `Thank you for submitting your form to LyfNest Solutions!\n\nWe've received your information and will contact you within 24-48 hours. Please do not reply to this automated message.\n\nIf you have urgent questions, contact support at ${process.env.SUPPORT_EMAIL}`,
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-            <h2 style="color: #dc3545;">NEW SUBMISSION ALERT</h2>
-            <p><strong>User:</strong> ${formData.firstName} ${formData.lastName}</p>
-            <p><strong>Email:</strong> ${email}</p>
-            <p><strong>Submitted At:</strong> ${new Date().toLocaleString()}</p>
-            
-            <div style="background: #f8d7da; padding: 15px; margin: 20px 0;">
-              <p style="margin: 0;">
-                  A new form submission has been received. Please review it in the admin panel.
-                   <p style="background: #dc3545; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
-                  REVIEW SUBMISSION
-                </p>
-              </p>
+            <h2 style="color: #1a237e;">Submission Confirmed</h2>
+            <p>Thank you for submitting your form to <strong>LyfNest Solutions</strong>!</p>
+            <p>We've received your information and will contact you within 24-48 hours.</p>
+            <div style="background: #f5f5f5; padding: 20px; margin: 20px 0;">
+              Contact our support team at <a href="mailto:${process.env.SUPPORT_EMAIL}">${process.env.SUPPORT_EMAIL}</a>
             </div>
-  
-            <p style="color: #6c757d;">
-              <strong>Quick Details:</strong>
+            <p style="color: #616161;">
+              <strong>Please note:</strong>
               <ul>
-                <li>Phone: ${formData.phoneNumber}</li>
-                <li>Monthly Budget: ${formData.monthlyBudget}</li>
-                <li>Coverage Amount : ${formData.coverageAmount}</li>
-                <li>Submission ID: ${newFform._id}</li>
+                <li>This is an automated message - please do not reply</li>
+                <li>We'll contact you using your preferred method</li>
               </ul>
             </p>
-          </div>
-        `
-      });
-  
-       res.status(200).json({ message: `Admin alerts sent to ${adminEmails.length} recipients`});
+          </div>`
+      };
+      await sgMail.send(userMsg);
+      userEmailSent = true;
+    } catch (userMailError) {
+      console.error("User Email Confirmation Failed", userMailError);
     }
-  } catch (adminEmailError) {
-    console.error('Admin Email failed', adminEmailError);
-  }
 
- res.status(201).json({
-   message: 'Final Expense Form Submission  Successful', 
-   userEmail: userEmailSent ? "sent" : "failed",
-   adminAlert: adminEmails.length > 0 ? "sent" : "No admins"
-   });
-  } catch(error){
-    console.error("Submission Error", error.message)
+  //   await transporter.sendMail({
+  //       to: email,
+  //       subject: 'Form Submission Confirmation',
+  //         text: `Thank you for submitting your form to LyfNest Solutions!\n\nWe've received your information and will contact you within 24-48 hours. Please do not reply to this automated message.\n\nIf you have urgent questions, contact support at ${process.env.SUPPORT_EMAIL}`,
+  //     html: `
+  //       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+  //         <h2 style="color: #1a237e;">Submission Confirmed</h2>
+  //         <p>Thank you for submitting your form to <strong>LyfNest Solutions</strong>!</p>
+  //         <p>We've received your information and will contact you within 24-48 hours.</p>
+          
+  //         <div style="background:  #f5f5f5; padding: 20px; margin: 20px 0;">
+  //           Contact our support team at <a href="mailto:${ process.env.EMAIL_USER}">${ process.env.EMAIL_USER}</a></p>
+  //         </div>
+  
+  //         <p style="color: #616161;">
+  //           <strong>Please note:</strong>
+  //           <ul>
+  //             <li>This is an automated message - please do not reply</li>
+  //             <li>We'll contact you using your preferred method</li>
+  //           </ul>
+  //         </p>
+  //       </div>
+  //           `
+  //   });
+  //     userEmailSent=true
+  //  }catch(userMailError){
+  //   console.error("User Email Confirmation Failed", userMailError)
+  //  }
+      let adminEmails = [];
+    try {
+      const admins = await User.find({ role: "admin" }).select("email -_id");
+      adminEmails = admins.map(admin => admin.email);
+      
+      if (adminEmails.length > 0) {
+        // Admin alert via SendGrid
+        const adminMsg = {
+          to: process.env.ADMIN_ALERT_EMAIL || adminEmails[0], // Primary recipient
+          bcc: adminEmails, // Other admins in BCC
+          from: process.env.SENDER_EMAIL,
+          subject: '🚨 New Form Submission Alert',
+          text: `New submission from ${formData.firstName} ${formData.lastName} (${email})\n\nReview in admin panel.`,
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              <h2 style="color: #dc3545;">NEW SUBMISSION ALERT</h2>
+              <p><strong>User:</strong> ${formData.firstName} ${formData.lastName}</p>
+              <p><strong>Email:</strong> ${email}</p>
+              <p><strong>Submitted At:</strong> ${new Date().toLocaleString()}</p>
+              <div style="background: #f8d7da; padding: 15px; margin: 20px 0;">
+                <p style="margin: 0;">
+                  A new form submission has been received. Please review it in the admin panel.
+                  <p style="background: #dc3545; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
+                    REVIEW SUBMISSION
+                  </p>
+                </p>
+              </div>
+              <p style="color: #6c757d;">
+                <strong>Quick Details:</strong>
+                <ul>
+                  <li>Phone: ${formData.phoneNumber}</li>
+                  <li>Monthly Budget: ${formData.monthlyBudget}</li>
+                  <li>Coverage Amount: ${formData.coverageAmount}</li>
+                  <li>Submission ID: ${newFform._id}</li>
+                </ul>
+              </p>
+            </div>`
+        };
+        await sgMail.send(adminMsg);
+      }
+    } catch (adminEmailError) {
+      console.error('Admin Email failed', adminEmailError);
+    }
+
+    res.status(201).json({
+      message: 'Final Expense Form Submission Successful', 
+      userEmail: userEmailSent ? "sent" : "failed",
+      adminAlert: adminEmails.length > 0 ? "sent" : "No admins"
+    });
+  } catch(error) {
+    console.error("Submission Error", error.message);
     res.status(500).json({ error: error.message });
   }
+
+
+   
+  // let adminEmails = [];
+  //   try {
+      // Get all admin emails from DB
+//       const admins = await User.find({ role: "admin" }).select("email -_id");
+//          adminEmails = admins.map(admin => admin.email);
+//          if (adminEmails.length > 0) {
+      
+//       await transporter.sendMail({
+//         bcc: adminEmails, // Use BCC to preserve privacy
+//         subject: '🚨 New Form Submission Alert',
+//         text: `New submission from ${formData.firstName} ${formData.lastName} (${email})\n\nReview in admin panel.`,
+//         html: `
+//           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+//             <h2 style="color: #dc3545;">NEW SUBMISSION ALERT</h2>
+//             <p><strong>User:</strong> ${formData.firstName} ${formData.lastName}</p>
+//             <p><strong>Email:</strong> ${email}</p>
+//             <p><strong>Submitted At:</strong> ${new Date().toLocaleString()}</p>
+            
+//             <div style="background: #f8d7da; padding: 15px; margin: 20px 0;">
+//               <p style="margin: 0;">
+//                   A new form submission has been received. Please review it in the admin panel.
+//                    <p style="background: #dc3545; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
+//                   REVIEW SUBMISSION
+//                 </p>
+//               </p>
+//             </div>
+  
+//             <p style="color: #6c757d;">
+//               <strong>Quick Details:</strong>
+//               <ul>
+//                 <li>Phone: ${formData.phoneNumber}</li>
+//                 <li>Monthly Budget: ${formData.monthlyBudget}</li>
+//                 <li>Coverage Amount : ${formData.coverageAmount}</li>
+//                 <li>Submission ID: ${newFform._id}</li>
+//               </ul>
+//             </p>
+//           </div>
+//         `
+//       });
+  
+//        res.status(200).json({ message: `Admin alerts sent to ${adminEmails.length} recipients`});
+//     }
+//   } catch (adminEmailError) {
+//     console.error('Admin Email failed', adminEmailError);
+//   }
+
+//  res.status(201).json({
+//    message: 'Final Expense Form Submission  Successful', 
+//    userEmail: userEmailSent ? "sent" : "failed",
+//    adminAlert: adminEmails.length > 0 ? "sent" : "No admins"
+//    });
+//   } catch(error){
+//     console.error("Submission Error", error.message)
+//     res.status(500).json({ error: error.message });
+//   }
 
 
    // Optional: Send confirmation SMS
