@@ -689,21 +689,21 @@ const submissionForm = asyncHandler(async (req, res) => {
         subject: 'Form Submission Confirmation',
         text: `Thank you for submitting your form to LyfNest Solutions!\n\nWe've received your information and will contact you within 24-48 hours.\n\nSecurity notice: Never share personal information via email.`,
          html: `
-//            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-//              <h2 style="color: #1a237e;">Submission Confirmed</h2>
-//              <p>Thank you for submitting your form to <strong>LyfNest Solutions</strong>!</p>
-//              <p>We've received your information and will contact you within 24-48 hours.</p>
-//              <div style="background: #f5f5f5; padding: 20px; margin: 20px 0;">
-//                Contact our support team at <a href="mailto:${process.env.SENDER_EMAIL}">${process.env.SENDER_EMAIL}</a>
-//              </div>
-//              <p style="color: #616161;">
-//                <strong>Please note:</strong>
-//                <ul>
-//                  <li>This is an automated message - please do not reply</li>
-//                  <li>We'll contact you using your preferred method</li>
-//                </ul>
-//              </p>
-//            </div>`
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+             <h2 style="color: #1a237e;">Submission Confirmed</h2>
+              <p>Thank you for submitting your form to <strong>LyfNest Solutions</strong>!</p>
+            <p>We've received your information and will contact you within 24-48 hours.</p>
+             <div style="background: #f5f5f5; padding: 20px; margin: 20px 0;">
+        Contact our support team at <a href="mailto:${process.env.SENDER_EMAIL}">${process.env.SENDER_EMAIL}</a>
+             </div>
+             <p style="color: #616161;">
+               <strong>Please note:</strong>
+               <ul>
+                 <li>This is an automated message - please do not reply</li>
+                 <li>We'll contact you using your preferred method</li>
+               </ul>
+             </p>
+           </div>`
         // html: `
         //   <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
         //     <h2 style="color: #1a237e;">Submission Confirmed</h2>
