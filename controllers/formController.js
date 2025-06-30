@@ -1,407 +1,7 @@
-// const twilio = require('twilio');
-// const Verification = require('../models/verificationModels');
-// const Form = require('../models/formModels');
-// const asyncHandler = require('express-async-handler')
-// const crypto = require('crypto');
-// const sgMail = require('@sendgrid/mail'); 
-// const EmailVerification = require('../models/emailVerificationsModels');
-// const Notification = require('../models/notificationModels');
-// const User = require("../models/userModels");
-
-
-// sgMail.setApiKey(process.env.SENDGRID_API_KEY); 
-
-// const client = twilio(
-//   process.env.TWILIO_SID, 
-//   process.env.TWILIO_AUTH_TOKEN
-// );
-
-
-// const initialVerificationChecks = asyncHandler (async (req, res)=>{
-//   try {
-//      const { phoneNumber, phoneType } = req.body;
- 
-//      if(!['mobile', 'landline'].includes(phoneType)){
-//        return res.status(400).json({error:'invalid Phone Type'})
-//      }
-     
-//      const channel = phoneType === 'landline'? 'call': 'sms'
-//      // Validate E.164 format
-//      const verification = await client.verify.v2.services(process.env.TWILIO_SERVICE_SID)
-//        .verifications
-//        .create({ to: phoneNumber, channel: channel });
- 
-//      // Create verification record
-//      const newVerification = new Verification({
-//        phoneNumber,
-//        phoneType,
-//        twilioSid: verification.sid,
-//        expiresAt: new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
-//      });
- 
-//      await newVerification.save();
-//      console.log("Verification record saved", newVerification)
-     
-//      res.status(200).json({ 
-//        message: `Verification ${channel==='call' ? 'call' :'code'} sent`,
-//        expiresAt: newVerification.expiresAt
-//      });
- 
-//    } catch (error) {
-//      console.error("database record saved", error.message)
-//      res.status(500).json({ error: 'Failed to start verification' });
-//    }
-//  })
- 
-// // Send Email Verification Code
-// const sendEmailVerification = asyncHandler(async (req, res) => {
-//   const { email } = req.body;
-//   // const token = crypto.randomBytes(3).toString('hex').toUpperCase(); 
-//   const token = crypto.randomInt(100000, 1000000).toString(); // 6-digit code
-//   const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 mins
-
-//   await EmailVerification.findOneAndUpdate(
-//     { email },
-//     { token, expiresAt, status: 'pending', attempts: 0 },
-//     { upsert: true }
-//   );
-
-//   const msg = {
-//      to: email,
-//      from: process.env.SENDER_EMAIL, // Must be verified in SendGrid
-//      subject: 'Verify Your Email Address',
-//      text: `LyfNest Solutions will NEVER proactively call or text you for this code. DO NOT share it.
-//      Your verification code is: ${token}
-//      This code is active for 10 minutes from the time of request.`,
-//      html: `
-//        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-//          <h2 style="color: #1a237e;">Email Verification</h2>
-//          <p>Your verification code is:</p>
-//          <div style="background: #f5f5f5; padding: 20px; font-size: 24px; letter-spacing: 2px; margin: 20px 0;">
-//            ${token}
-//          </div>
-//          <p style="color: #616161;">
-//            <strong>Important:</strong>
-//            <ul>
-//              <li>This code expires in 10 minutes</li>
-//              <li>Never share this code with anyone</li>
-//              <li>If you didn't request this code, please contact support</li>
-//            </ul>
-//          </p>
-//        </div>`
-//    };
- 
-//    try {
-//      await sgMail.send(msg);
-//      res.status(200).json({ message: 'Verification email sent', expiresAt });
-//    } catch (error) {
-//      console.error('SendGrid error:', error.response?.body || error.message);
-//      res.status(500).json({ error: 'Failed to send verification email' });
-//    }
-//  });
- 
-
-// const verifyCode = asyncHandler(async(req, res)=>{
-//   try {
-//     const { phoneNumber, code } = req.body;
-    
-//     // Check verification attempts
-//     const verification = await Verification.findOne({
-//       phoneNumber,
-//       status: 'pending'
-//     });
-
-//     if (!verification || verification.attempts >= 3) {
-//       return res.status(400).json({ error: 'Invalid verification request' });
-//     }
-
-//     if(new Date()>verification.expiresAt){
-//       return res.status(400).json({ error: 'Verification code expired' });
-//     }
-//     // Verify with Twilio
-//     const check = await client.verify.v2.services(process.env.TWILIO_SERVICE_SID)
-//       .verificationChecks
-//       .create({ verificationSid: verification.twilioSid, code:code });
-
-//     if (check.status !== 'approved') {
-//       verification.attempts += 1;
-//       await verification.save();
-//       return res.status(400).json({ error: 'Invalid code' });
-//     }
-
-
-
-//     // Update verification status
-//     verification.status = 'verified';
-//     await verification.save();
-
-//     res.status(200).json({ 
-//       message: 'Verification successful',
-//       verificationId: verification._id 
-//     });
-
-//   } catch (error) {
-//     console.error("Verification Error", error.message)
-//     res.status(500).json({ error: 'Verification failed' });
-//   }
-
-// })  
-
-// // Verify Email Code
-// const verifyEmailCode = asyncHandler(async (req, res) => {
-//   const { email, code } = req.body;
-//   const record = await EmailVerification.findOne({ email });
-
-//   if (!record || record.status !== 'pending') {
-//     return res.status(400).json({ error: 'Invalid request' });
-//   }
-
-//   if (record.attempts >= 3) {
-//     return res.status(400).json({ error: 'Too many attempts' });
-//   }
-
-//   if (record.token !== code) {
-//     record.attempts += 1;
-//     await record.save();
-//     return res.status(400).json({ error: 'Invalid code' });
-//   }
-
-//   if (new Date() > record.expiresAt) {
-//     return res.status(400).json({ error: 'Code expired' });
-//   }
-
-//   record.status = 'verified';
-//   await record.save();
-//   res.status(200).json({ message: 'Email verified' });
-// });
-
-
-// const submissionForm = asyncHandler(async(req, res)=>{
-
-//   try {
-//     // const {verification: verificationId, ...formData } = req.body;
-//     const { verification: verificationId, Email: email, ...formData } = req.body;
-
-//  // Verify the verification record
-//   //     const verification = await Verification.findById(verificationId);
-  
-//   //  if (!verification || verification.status !== 'verified') {
-//   //    return res.status(400).json({ error: 'Verification required' });
-//   //  }
-
-//    const phoneVerification = await Verification.findById(verificationId);
-//     if (!phoneVerification || phoneVerification.status !== 'verified') {
-//       return res.status(400).json({ error: 'Phone verification required' });
-//     }
-  
-//     const emailVerification = await EmailVerification.findOne({ 
-//         email,
-//         status: 'verified' 
-//       });
-//       if (!emailVerification) {
-//         return res.status(400).json({ error: 'Email verification required' });
-//       }
-  
-
-//    // Create user submission
-//    const [year, month, day]= formData.Dob.split('-')
-//    const dobDate = new Date(year, month - 1, day)
-
-
-//    const today = new Date();
-//    const cutoffDate = new Date(
-//    today.getFullYear() - 18,
-//    today.getMonth(),
-//    today.getDate()
-// );
-
-// if (dobDate > cutoffDate) {
-//   return res.status(400).json({ error: "You must be at least 18 years old" });
-// }
-
-//    const newForm = new Form({
-//     ...formData,
-//        Dob:dobDate,
-//        verification: verificationId,
-//        verifiedAt: new Date(),
-//        Email:email,
-//        emailVerification: emailVerification._id,
-//        emailVerified: true
-//   });
- 
-
-//   await newForm.save();
-//  let userEmailSent=false
-//    try{
-//            const userMsg = {
-//          to: email,
-//          from: process.env.SENDER_EMAIL,
-//          subject: 'Form Submission Confirmation',
-//          text: `Thank you for submitting your form to LyfNest Solutions!\n\nWe've received your information and will contact you within 24-48 hours. Please do not reply to this automated message.\n\nIf you have urgent questions, contact support at ${process.env.SUPPORT_EMAIL}`,
-//          html: `
-//            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-//              <h2 style="color: #1a237e;">Submission Confirmed</h2>
-//              <p>Thank you for submitting your form to <strong>LyfNest Solutions</strong>!</p>
-//              <p>We've received your information and will contact you within 24-48 hours.</p>
-//              <div style="background: #f5f5f5; padding: 20px; margin: 20px 0;">
-//                Contact our support team at <a href="mailto:${process.env.SENDER_EMAIL}">${process.env.SENDER_EMAIL}</a>
-//              </div>
-//              <p style="color: #616161;">
-//                <strong>Please note:</strong>
-//                <ul>
-//                  <li>This is an automated message - please do not reply</li>
-//                  <li>We'll contact you using your preferred method</li>
-//                </ul>
-//              </p>
-//            </div>`
-//        };
-//        await sgMail.send(userMsg);
-//        userEmailSent = true;
-//      } catch (userMailError) {
-//        console.error("User Email Confirmation Failed", userMailError);
-//      }
-
-
-
-//  let adminEmails = [];
-//     try {
-//       const admins = await User.find({ role: "admin" }).select("email -_id");
-//       adminEmails = admins.map(admin => admin.email);
-      
-//       if (adminEmails.length > 0) {
-//         // Admin alert via SendGrid
-//         const adminMsg = { 
-//           bcc: adminEmails, // Other admins in BCC
-//           from: process.env.SENDER_EMAIL,
-//           subject: '🚨 New Form Submission Alert',
-//           text: `New submission from ${formData.firstName} ${formData.lastName} (${email})\n\nReview in admin panel.`,
-//           html: `
-//             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-//               <h2 style="color: #dc3545;">NEW SUBMISSION ALERT</h2>
-//               <p><strong>User:</strong> ${formData.firstName} ${formData.lastName}</p>
-//               <p><strong>Email:</strong> ${email}</p>
-//               <p><strong>Submitted At:</strong> ${new Date().toLocaleString()}</p>
-//               <div style="background: #f8d7da; padding: 15px; margin: 20px 0;">
-//                 <p style="margin: 0;">
-//                   A new form submission has been received. Please review it in the admin panel.
-//                   <p style="background: #dc3545; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
-//                     REVIEW SUBMISSION
-//                   </p>
-//                 </p>
-//               </div>
-//               <p style="color: #6c757d;">
-//                 <strong>Quick Details:</strong>
-//                <ul>
-//               <li>Phone: ${formData.phoneNumber}</li>
-//                <li>Primary Goal: ${formData.primaryGoal}</li>
-//               <li>Requested Coverage: ${formData.coverageType.join(', ')}</li>
-//               <li>Submission ID: ${newForm._id}</li>
-//             </ul>
-//               </p>
-//             </div>`
-//         };
-//         await sgMail.send(adminMsg);
-//       }
-//     } catch (adminEmailError) {
-//       console.error('Admin Email failed', adminEmailError);
-//     }
-
-//     res.status(201).json({
-//       message: 'Form Submission Successful', 
-//       userEmail: userEmailSent ? "sent" : "failed",
-//       adminAlert: adminEmails.length > 0 ? "sent" : "No admins"
-//     });
-//   } catch(error) {
-//     console.error("Submission Error", error.message);
-//     res.status(500).json({ error: error.message });
-//   }
-
-
-
-//    // Optional: Send confirmation SMS
-//   //  await client.messages.create({
-//   //    body: 'Your insurance submission was received!',
-//   //   from: process.env.TWILIO_PHONE_NUMBER,
-//   //    to: formData.phoneNumber,
-//   //  });
-
-
-// })
-
-// const getallForms = asyncHandler(async(req, res)=>{
-//   try{
-//     const getForms = await Form.find()
-//     res.status(200).json(getForms)
-//   }
-//   catch(error){
-//     throw new Error("failed to get all forms")
-//   }
-  
-// })
-
-// const getNotifs = asyncHandler(async(req, res)=>{
-//   try{
-//  const notifs = await Notification.find().sort({ timestamp: -1 });
-//   res.json(notifs);
-//   }
-//    catch(error){
-//     throw new Error("failed to get notifications") 
-//   }
-// })
-// // GET all notifications
-// const getAllNotifs = asyncHandler(async(req, res)=>{
-//   try{
-//     const notifs = await Notification.find().sort({ timestamp: -1 });
-//     res.status(200).json(notifs);
-//   }
-//   catch(error){
-//     throw new Error("failed to get all notifications")
-//   }
-// }) 
-// // POST a new notification
-// const createNotifs = asyncHandler(async(req, res)=>{
-
-//   try {
-//     const newNotif = new Notification({ 
-//       message:req.body.message, 
-//       formType:req.body.formType,
-//       timestamp: new Date(req.body.timestamp),
-//       read:req.body.read||false
-//      });
-//     await newNotif.save();
-//     res.status(201).json({ success: true });
-//   } catch (err) {
-//     console.error("save error", err)
-//     res.status(500).json({ error: 'Failed to save notification', details:err.message });
-//   }
-// });
-
-// // DELETE all notifications
-// const deleteNotifs = asyncHandler(async(req, res)=>{
-//   try{
-//   await Notification.deleteMany({});
-//   res.json({ success: true });
-//   }catch (err) {
-//     console.error("save error", err)
-//     res.status(500).json({ error: 'Failed to clear notification', details:err.message });
-//   }
-
-// });
-
-// // DELETE a specific notification
-// const deleteANotifs = asyncHandler(async(req, res)=>{
-//   const { id } = req.params;
-//   await Notification.findByIdAndDelete(id);
-//   res.json({ success: true });
-// });
-
-
-// module.exports = {initialVerificationChecks, sendEmailVerification, verifyCode, verifyEmailCode, submissionForm, getallForms, getNotifs, getAllNotifs, createNotifs, deleteNotifs, deleteANotifs}
-
-
 const twilio = require('twilio');
 const Verification = require('../models/verificationModels');
 const Form = require('../models/formModels');
+const Appointment = require('../models/appointmentModels'); 
 const asyncHandler = require('express-async-handler');
 const crypto = require('crypto');
 const sgMail = require('@sendgrid/mail');
@@ -420,11 +20,78 @@ const client = twilio(
 const VERIFICATION_EXPIRY_MINUTES = 10;
 const VERIFICATION_WINDOW_MINUTES = 30;
 const MAX_ATTEMPTS = 3;
+const CONTACT_WINDOW_START = 24; // hours
+const CONTACT_WINDOW_END = 48;   // hours
+const SLOT_DURATION = 30;        // minutes
+
 
 // Helper functions
 const generateNumericToken = () => crypto.randomInt(100000, 1000000).toString();
 const isE164Format = (phone) => /^\+\d{1,3}\d{6,14}$/.test(phone);
 const isValidEmail = (email) => /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$/.test(email);
+
+
+
+const scheduleAppointment = async () => {
+  try {
+    const now = new Date();
+    const contactWindowStart = new Date(now.getTime() + CONTACT_WINDOW_START * 60 * 60 * 1000);
+    const contactWindowEnd = new Date(now.getTime() + CONTACT_WINDOW_END * 60 * 60 * 1000);
+    
+    // Get existing appointments in the contact window
+    const existingAppointments = await Appointment.find({
+      assignedSlot: {
+        $gte: contactWindowStart,
+        $lte: contactWindowEnd
+      }
+    }).sort({ assignedSlot: 1 });
+    
+    // Generate possible time slots (every 30 minutes)
+    const slots = [];
+    let currentSlot = new Date(contactWindowStart);
+    
+    while (currentSlot < contactWindowEnd) {
+      slots.push(new Date(currentSlot));
+      currentSlot = new Date(currentSlot.getTime() + SLOT_DURATION * 60 * 1000);
+    }
+    
+    // Find first available slot
+    let assignedSlot = slots[0];
+    
+    for (const slot of slots) {
+      const slotTaken = existingAppointments.some(app => 
+        app.assignedSlot.getTime() === slot.getTime()
+      );
+      
+      if (!slotTaken) {
+        assignedSlot = slot;
+        break;
+      }
+    }
+    
+    return {
+      contactWindowStart,
+      contactWindowEnd,
+      assignedSlot
+    };
+  } catch (error) {
+    console.error("Scheduling Error:", error);
+    
+    // Fallback: Random slot in the window
+    const now = new Date();
+    const randomOffset = Math.floor(
+      Math.random() * 
+      (CONTACT_WINDOW_END - CONTACT_WINDOW_START) * 60 * 60 * 1000
+    );
+    
+    return {
+      contactWindowStart: new Date(now.getTime() + CONTACT_WINDOW_START * 60 * 60 * 1000),
+      contactWindowEnd: new Date(now.getTime() + CONTACT_WINDOW_END * 60 * 60 * 1000),
+      assignedSlot: new Date(now.getTime() + CONTACT_WINDOW_START * 60 * 60 * 1000 + randomOffset)
+    };
+  }
+};
+
 
 // Phone Verification
 const initialVerificationChecks = asyncHandler(async (req, res) => {
@@ -456,7 +123,7 @@ const initialVerificationChecks = asyncHandler(async (req, res) => {
     await newVerification.save();
     
     res.status(200).json({
-      message: `Verification ${channel === 'call' ? 'call initiated' : 'SMS sent'}`,
+      message: `Verification ${channel === 'call' ? 'call initiated' : 'Voicecall Sent'}`,
       expiresAt
     });
 
@@ -506,7 +173,7 @@ const sendEmailVerification = asyncHandler(async (req, res) => {
           ${token}
         </div>
         <p style="color: #616161;">
-          <strong>Security Notice:</strong>
+          <strong>Important Notice:</strong>
           <ul>
             <li>This code expires in ${VERIFICATION_EXPIRY_MINUTES} minutes</li>
             <li>Never share this code with anyone</li>
@@ -574,7 +241,7 @@ const verifyCode = asyncHandler(async (req, res) => {
 });
 
 // Email Verification Check
-const verifyEmailCode = asyncHandler(async (req, res) => {
+  const verifyEmailCode = asyncHandler(async (req, res) => {
   const { email, code } = req.body;
   const record = await EmailVerification.findOne({ email });
 
@@ -680,6 +347,16 @@ const submissionForm = asyncHandler(async (req, res) => {
 
     await newForm.save();
 
+    const appointmentDetails = await scheduleAppointment();
+    const newAppointment = new Appointment({
+      formId: newForm._id,
+      contactWindowStart: appointmentDetails.contactWindowStart,
+      contactWindowEnd: appointmentDetails.contactWindowEnd,
+      assignedSlot: appointmentDetails.assignedSlot
+    });
+    await newAppointment.save();
+
+
     // User confirmation email
     let userEmailSent = false;
     try {
@@ -692,7 +369,11 @@ const submissionForm = asyncHandler(async (req, res) => {
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
              <h2 style="color: #1a237e;">Submission Confirmed</h2>
               <p>Thank you for submitting your form to <strong>LyfNest Solutions</strong>!</p>
-            <p>We've received your information and will contact you within 24-48 hours.</p>
+              <p>We've received your information and will contact you between:<br>
+              <strong>${appointmentDetails.contactWindowStart.toLocaleString()} and<br>
+              ${appointmentDetails.contactWindowEnd.toLocaleString()}</strong>
+            </p>
+
              <div style="background: #f5f5f5; padding: 20px; margin: 20px 0;">
         Contact our support team at <a href="mailto:${process.env.SENDER_EMAIL}">${process.env.SENDER_EMAIL}</a>
              </div>
@@ -728,11 +409,19 @@ const submissionForm = asyncHandler(async (req, res) => {
       const admins = await User.find({ role: "admin" }).select("email");
       if (admins.length > 0) {
         const adminEmails = admins.map(admin => admin.email);
+        const formattedSlot = appointmentDetails.assignedSlot.toLocaleString('en-US', {
+          weekday: 'short',
+          month: 'short',
+          day: 'numeric',
+          hour: '2-digit',
+          minute: '2-digit'
+        });
+
         const adminMsg = {
           to: "noreply@lyfnestsolutions.com",
           bcc: adminEmails,
           from: process.env.SENDER_EMAIL,
-          subject: '🚨 New Form Submission Alert',
+          subject: '🚨 New Form Submission with Appointment',
           text: `New submission from ${formData.firstName} ${formData.lastName} (${email})\n\nReview in admin panel.`,
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
@@ -740,6 +429,14 @@ const submissionForm = asyncHandler(async (req, res) => {
               <p><strong>User:</strong> ${formData.firstName} ${formData.lastName}</p>
               <p><strong>Email:</strong> ${email}</p>
               <p><strong>Submitted At:</strong> ${new Date().toLocaleString()}</p>
+                            <div style="background: #e9f7ef; padding: 15px; margin: 20px 0; border-left: 4px solid #28a745;">
+                <h3 style="color: #28a745; margin-top: 0;">Scheduled Contact Slot</h3>
+                <p style="margin: 5px 0;"><strong>Assigned Time:</strong> ${formattedSlot}</p>
+                <p style="margin: 5px 0;"><strong>Contact Window:</strong><br>
+                  ${appointmentDetails.contactWindowStart.toLocaleString()} to<br>
+                  ${appointmentDetails.contactWindowEnd.toLocaleString()}
+                </p>
+              </div>
               <div style="background: #f8d7da; padding: 15px; margin: 20px 0;">
                 <p style="margin: 0;">
                   A new form submission has been received. Please review it in the admin panel.
@@ -755,6 +452,7 @@ const submissionForm = asyncHandler(async (req, res) => {
                <li>Primary Goal: ${formData.primaryGoal}</li>
               <li>Requested Coverage: ${formData.coverageType.join(', ')}</li>
               <li>Submission ID: ${newForm._id}</li>
+              <li>Appointment ID: ${newAppointment._id}</li>
             </ul>
               </p>
             </div>`
@@ -777,19 +475,31 @@ const submissionForm = asyncHandler(async (req, res) => {
 
     // Create notification
     try {
-      await Notification.create({
-        message: `New form submission from ${formData.firstName} ${formData.lastName}`,
-        formType: 'insurance',
-        read: false
+      const formattedSlot = appointmentDetails.assignedSlot.toLocaleTimeString([], {
+        hour: '2-digit', 
+        minute: '2-digit'
       });
-    } catch (notifError) {
+
+
+      await Notification.create({
+        message: `New submission from ${formData.firstName} ${formData.lastName} ${formattedSlot}`,
+        formType: 'insurance',
+        read: false,
+      });
+        } catch (notifError) {
       console.error("Notification Creation Failed:", notifError);
     }
 
     res.status(201).json({
       message: 'Form submitted successfully',
       userEmail: userEmailSent,
-      adminAlert: adminAlertSent
+      adminAlert: adminAlertSent,
+      appointment: {
+        slot: appointmentDetails.assignedSlot,
+        windowStart: appointmentDetails.contactWindowStart,
+        windowEnd: appointmentDetails.contactWindowEnd
+      },
+
     });
 
   } catch (error) {
@@ -801,6 +511,8 @@ const submissionForm = asyncHandler(async (req, res) => {
     res.status(500).json({ error: 'Form submission failed' });
   }
 });
+
+
 
 // Form Retrieval
 const getallForms = asyncHandler(async (req, res) => {
@@ -832,7 +544,7 @@ const createNotifs = asyncHandler(async (req, res) => {
       read: false
     });
     res.status(201).json(newNotif);
-  } catch (error) {
+  } catch (error) { 
     console.error("Create Notification Error:", error);
     res.status(500).json({ error: 'Failed to create notification' });
   }
@@ -859,6 +571,164 @@ const deleteANotifs = asyncHandler(async (req, res) => {
   }
 });
 
+// Add this function to your existing controller file
+
+const contactUserByEmail = asyncHandler(async (req, res) => {
+  try {
+    const { 
+      appointmentId, 
+      userEmail, 
+      userName, 
+      subject, 
+      message,
+      adminName,
+      contactMethod = 'email' // email, phone, or both
+    } = req.body;
+
+    // Validation
+    if (!appointmentId || !userEmail || !userName) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: appointmentId, userEmail, userName' 
+      });
+    }
+
+    if (!isValidEmail(userEmail)) {
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+
+    // Find the appointment to get more details
+    const appointment = await Appointment.findById(appointmentId).populate('formId');
+    if (!appointment) {
+      return res.status(404).json({ error: 'Appointment not found' });
+    }
+
+    // Get form details if available
+    let formData = null;
+    if (appointment.formId) {
+      formData = await Form.findById(appointment.formId);
+    }
+
+    // Default subject and message if not provided
+    const emailSubject = subject || `Follow-up from LyfNest Solutions - Appointment ${formatDate(appointment.assignedSlot, 'shortDate')}`;
+    
+    const defaultMessage = `Dear ${userName},
+
+I hope this message finds you well. I'm reaching out regarding your recent inquiry with LyfNest Solutions.
+
+We had scheduled to contact you on ${formatDate(appointment.assignedSlot, 'longDateTime')} and wanted to follow up on your insurance needs.
+
+${formData ? `Based on your submitted information, we understand you're interested in:
+${formData.coverageType ? formData.coverageType.join(', ') : 'Insurance coverage'}
+
+Your primary goal: ${formData.primaryGoal || 'Insurance planning'}` : ''}
+
+We'd love to discuss how we can help you achieve your insurance goals. Please feel free to reply to this email or contact us directly.
+
+Best regards,
+${adminName || 'LyfNest Solutions Team'}
+Phone: ${process.env.COMPANY_PHONE || '(555) 123-4567'}
+Email: ${process.env.SENDER_EMAIL}`;
+
+    const emailMessage = message || defaultMessage;
+
+    // Prepare email content
+    const msg = {
+      to: userEmail,
+      from: process.env.SENDER_EMAIL,
+      subject: emailSubject,
+      text: emailMessage,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+          <div style="background: linear-gradient(135deg, #1a237e 0%, #3f51b5 100%); color: white; padding: 30px; border-radius: 10px 10px 0 0;">
+            <h1 style="margin: 0; font-size: 28px;">LyfNest Solutions</h1>
+            <p style="margin: 10px 0 0 0; opacity: 0.9;">Your Insurance Partner</p>
+          </div>
+          
+          <div style="background: #ffffff; padding: 30px; border: 1px solid #e0e0e0; border-top: none;">
+            <div style="white-space: pre-line; line-height: 1.6; color: #333;">
+              ${emailMessage.replace(/\n/g, '<br>')}
+            </div>
+            
+            ${formData ? `
+            <div style="background: #f8f9fa; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #4caf50;">
+              <h3 style="color: #2e7d32; margin-top: 0;">Your Inquiry Details:</h3>
+              <ul style="color: #555; margin: 10px 0;">
+                <li><strong>Coverage Interest:</strong> ${formData.coverageType ? formData.coverageType.join(', ') : 'Not specified'}</li>
+                <li><strong>Primary Goal:</strong> ${formData.primaryGoal || 'Not specified'}</li>
+                <li><strong>Preferred Contact:</strong> ${formData.preferredContactMethod || 'Email'}</li>
+                ${formData.phoneNumber ? `<li><strong>Phone:</strong> ${formData.phoneNumber}</li>` : ''}
+              </ul>
+            </div>
+            ` : ''}
+            
+            <div style="background: #e3f2fd; padding: 20px; margin: 20px 0; border-radius: 8px;">
+              <h3 style="color: #1565c0; margin-top: 0;">Next Steps:</h3>
+              <ul style="color: #333; margin: 10px 0;">
+                <li>Reply to this email with any questions</li>
+                <li>Call us at ${process.env.COMPANY_PHONE || '(555) 123-4567'}</li>
+                <li>Schedule a convenient time for a detailed consultation</li>
+              </ul>
+            </div>
+          </div>
+          
+          <div style="background: #f5f5f5; padding: 20px; text-align: center; border-radius: 0 0 10px 10px;">
+            <p style="margin: 0; color: #666; font-size: 14px;">
+              <strong>LyfNest Solutions</strong><br>
+              Email: ${process.env.SENDER_EMAIL}<br>
+              ${process.env.COMPANY_PHONE ? `Phone: ${process.env.COMPANY_PHONE}<br>` : ''}
+              <em>Protecting what matters most to you</em>
+            </p>
+          </div>
+        </div>
+      `
+    };
+
+    // Send the email
+    await sgMail.send(msg);
+
+    // Update appointment status if needed
+    if (appointment.status === 'scheduled') {
+      appointment.status = 'contacted';
+      appointment.lastContactDate = new Date();
+      appointment.contactMethod = contactMethod;
+      appointment.contactedBy = adminName || 'Admin';
+      await appointment.save();
+    }
+
+    // Log the contact attempt
+    console.log(`Email sent to ${userEmail} for appointment ${appointmentId} by ${adminName || 'Admin'}`);
+
+    res.status(200).json({
+      message: 'Email sent successfully',
+      appointmentId,
+      contactMethod: 'email',
+      sentAt: new Date(),
+      recipient: userEmail
+    });
+
+  } catch (error) {
+    console.error("Contact Email Error:", {
+      message: error.message,
+      stack: error.stack,
+      body: req.body
+    });
+
+    // Check for specific SendGrid errors
+    if (error.response?.body?.errors) {
+      const sgError = error.response.body.errors[0];
+      return res.status(400).json({ 
+        error: `Email delivery failed: ${sgError.message}` 
+      });
+    }
+
+    res.status(500).json({ 
+      error: 'Failed to send contact email' 
+    });
+  }
+});
+
+
+
 module.exports = {
   initialVerificationChecks,
   sendEmailVerification,
@@ -869,5 +739,6 @@ module.exports = {
   getAllNotifs,
   createNotifs,
   deleteNotifs,
-  deleteANotifs
+  deleteANotifs,
+  contactUserByEmail
 };

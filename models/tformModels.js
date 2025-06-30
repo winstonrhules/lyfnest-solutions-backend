@@ -30,14 +30,16 @@ var tformSchema = new mongoose.Schema({
       ]
     },
 
-      phoneType: {
+    phoneType: {
        type: String,
         enum: [
           "mobile",
-          "landline",
+          "landline"
         ],
         required: true,
+        default: "mobile",
     },
+
 
       phoneNumber: {
         type: String,
