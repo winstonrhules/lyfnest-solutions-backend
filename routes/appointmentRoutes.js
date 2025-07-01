@@ -7,14 +7,14 @@ const {
   rescheduleAppointment
 } = require('../controllers/appointmentController');
 
-router.route('/')
-  .get(isAdmin, getAppointments);
+// router.route('/')
+//   .get(isAdmin, getAppointments);
 
-router.route('/:id')
-  .put(isAdmin, updateAppointmentStatus);
+router.get('/all-appointment', isAdmin, getAppointments)
 
-router.route('/reschedule/:id')
-  .put(isAdmin, rescheduleAppointment);
+router.put('/:id', isAdmin, updateAppointmentStatus);
+
+router.put('/reschedule/:id', isAdmin, rescheduleAppointment);
 
 module.exports = router;
 

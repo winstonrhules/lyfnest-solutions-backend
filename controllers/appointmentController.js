@@ -2,20 +2,6 @@ const asyncHandler = require('express-async-handler');
 const Appointment = require('../models/appointmentModels');
 const Form = require('../models/formModels');
 
-// Get all appointments
-// const getAppointments = asyncHandler(async (req, res) => {
-//   try {
-//     const appointments = await Appointment.find()
-//       .populate('formId', 'firstName lastName phoneNumber Email')
-//       .sort({ assignedSlot: 1 });
-      
-//     res.status(200).json(appointments);
-//   } catch (error) {
-//     console.error("Get Appointments Error:", error);
-//     res.status(500).json({ error: 'Failed to retrieve appointments' });
-//   }
-// });
-
 const getAppointments = asyncHandler(async (req, res) => {
   try {
     const appointments = await Appointment.find()
