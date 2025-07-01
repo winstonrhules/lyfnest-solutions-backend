@@ -10,11 +10,11 @@ const {
 // router.route('/')
 //   .get(isAdmin, getAppointments);
 
-router.get('/all-appointment', isAdmin, getAppointments)
+router.get('/all-appointment', getAppointments)
 
-router.put('/:id', isAdmin, updateAppointmentStatus);
+router.put('/:id',  updateAppointmentStatus);
 
-router.put('/reschedule/:id', isAdmin, rescheduleAppointment);
+router.put('/reschedule/:id',  rescheduleAppointment);
 
 module.exports = router;
 
