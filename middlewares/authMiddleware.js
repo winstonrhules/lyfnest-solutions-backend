@@ -22,6 +22,9 @@ const authMiddleware = asyncHandler(async(req, res, next)=>{
 })
 
 const isAdmin = asyncHandler(async(req, res, next)=>{
+if(!req.user){
+    return res.status(401).json({message:"Not Authorized, No user found"})
+}
 const {email}=req.user;
 const findAdmin = await User.findOne({email:email})
 if(findAdmin.role!=="admin"){
