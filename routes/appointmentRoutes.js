@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { authMiddleware, isAdmin } = require('../middlewares/authMiddleware');
+// const { authMiddleware, isAdmin } = require('../middlewares/authMiddleware');
 const {
   getAppointments,
   updateAppointmentStatus,
@@ -10,11 +10,11 @@ const {
 // router.route('/')
 //   .get(isAdmin, getAppointments);
 
-router.get('/all-appointment', authMiddleware, isAdmin, getAppointments)
+router.get('/all-appointment', getAppointments)
 
-router.put('/:id', authMiddleware, isAdmin,  updateAppointmentStatus);
+router.put('/:id',  updateAppointmentStatus);
 
-router.put('/reschedule/:id', authMiddleware, isAdmin, rescheduleAppointment);
+router.put('/reschedule/:id', rescheduleAppointment);
 
 module.exports = router;
 
