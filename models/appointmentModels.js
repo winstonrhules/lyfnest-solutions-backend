@@ -6,6 +6,16 @@ const appointmentSchema = new mongoose.Schema({
     ref: 'Form',
     required: true
   },
+  formType:{
+      type: String, 
+      required: true,
+      enum:['mainForm', 'termForm', 'wholeForm', 'indexedForm', 'finalForm']
+    },
+    formData:{
+    type: mongoose.Schema.Types.Mixed, 
+    required: true,
+  },
+  
   contactWindowStart: {
     type: Date,
     required: true

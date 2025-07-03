@@ -11,6 +11,8 @@ const getAppointments = asyncHandler(async (req, res) => {
     const formattedAppointments = appointments.map(app => ({
       id: app._id,
       formId: app.formId._id,
+      formType: app.formType, 
+      formData: app.formData,
       contactWindowStart: app.contactWindowStart,
       contactWindowEnd: app.contactWindowEnd,
       assignedSlot: app.assignedSlot,

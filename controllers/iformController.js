@@ -548,7 +548,7 @@ const submissionForm = asyncHandler(async (req, res) => {
       });
 
       await Notification.create({
-        message: `New form submission from ${formData.firstName} ${formData.lastName}`,
+        message: `New form submission from ${formData.firstName} ${formData.lastName} ${formattedSlot}`,
         formType: 'insurance',
         read: false
       });
