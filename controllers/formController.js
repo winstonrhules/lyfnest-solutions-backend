@@ -4,13 +4,11 @@ const Form = require('../models/formModels');
 const Appointment = require('../models/appointmentModels'); 
 const asyncHandler = require('express-async-handler');
 const crypto = require('crypto');
-const sgMail = require('@sendgrid/mail');
 const EmailVerification = require('../models/emailVerificationsModels');
 const Notification = require('../models/notificationModels');
 const User = require("../models/userModels");
 const { SESClient, SendEmailCommand } = require("@aws-sdk/client-ses"); 
 
-sgMail.setApiKey(process.env.SENDGRID_API_KEY);
 
 const sesClient = new SESClient({
   region: process.env.AWS_REGION,
@@ -216,39 +214,6 @@ const sendEmailVerification = asyncHandler(async (req, res) => {
 });
 
 
-//   const msg = {
-//     to: email,
-//     from: process.env.SENDER_EMAIL,
-//     subject: 'Verify Your Email Address',
-//     text: `LyfNest Solutions will NEVER proactively contact you for this code. DO NOT share it.
-//     Your verification code is: ${token}
-//     This code expires in ${VERIFICATION_EXPIRY_MINUTES} minutes.`,
-//     html: `
-//       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-//         <h2 style="color: #1a237e;">Email Verification</h2>
-//         <p>Your verification code is:</p>
-//         <div style="background: #f5f5f5; padding: 20px; font-size: 24px; letter-spacing: 2px; margin: 20px 0; text-align: center;">
-//           ${token}
-//         </div>
-//         <p style="color: #616161;">
-//           <strong>Important Notice:</strong>
-//           <ul>
-//             <li>This code expires in ${VERIFICATION_EXPIRY_MINUTES} minutes</li>
-//             <li>Never share this code with anyone</li>
-//            <li>If you didn't request this code, please contact support</li>
-//           </ul>
-//         </p>
-//       </div>`
-//   };
-
-//   try {
-//     await sgMail.send(msg);
-//     res.status(200).json({ message: 'Verification email sent', expiresAt });
-//   } catch (error) {
-//     console.error('SendGrid Error:', error.response?.body || error);
-//     res.status(500).json({ error: 'Failed to send verification email' });
-//   }
-// });
 
 // Phone Verification Check
 const verifyCode = asyncHandler(async (req, res) => {
@@ -418,7 +383,7 @@ const submissionForm = asyncHandler(async (req, res) => {
     // User confirmation email
     let userEmailSent = false;
     try {
-            const userParams = {
+        const userParams = {
         Destination: { ToAddresses: [email] },
         Message: {
           Body: {
@@ -444,7 +409,7 @@ const submissionForm = asyncHandler(async (req, res) => {
             },
             Text: {
               Charset: "UTF-8",
-              Data: `Thank you for submitting your form to LyfNest Solutions!\n\nWe've received your information and will contact you within 24-48 hours.\n\nSecurity notice: Never share personal information via email.`,
+              Data: `Thank you for submitting your form to LyfNest Solutions!\n\nWe've received your information and will contact you within 24-72 hours.\n\nSecurity notice: Never share personal information via email.`,
             }
           },
           Subject: {
@@ -460,48 +425,7 @@ const submissionForm = asyncHandler(async (req, res) => {
       console.error("User Email Confirmation Failed", userMailError);
     }
 
-      // const userMsg = {
-      //   to: email,
-      //   from: process.env.SENDER_EMAIL,
-      //   subject: 'Form Submission Confirmation',
-      //   text: `Thank you for submitting your form to LyfNest Solutions!\n\nWe've received your information and will contact you within 24-48 hours.\n\nSecurity notice: Never share personal information via email.`,
-      //    html: `
-      //     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-      //        <h2 style="color: #1a237e;">Submission Confirmed</h2>
-      //         <p>Thank you for submitting your form to <strong>LyfNest Solutions</strong>!</p>
-      //         <p>We've received your information and will contact you between:<br>
-      //         <strong>${appointmentDetails.contactWindowStart.toLocaleString()} and<br>
-      //         ${appointmentDetails.contactWindowEnd.toLocaleString()}</strong>
-      //       </p>
-
-      //        <div style="background: #f5f5f5; padding: 20px; margin: 20px 0;">
-      //   Contact our support team at <a href="mailto:${process.env.SENDER_EMAIL}">${process.env.SENDER_EMAIL}</a>
-      //        </div>
-      //        <p style="color: #616161;">
-      //          <strong>Please note:</strong>
-      //          <ul>
-      //            <li>This is an automated message - please do not reply</li>
-      //            <li>We'll contact you using your preferred method</li>
-      //          </ul>
-      //        </p>
-      //      </div>`
-        // html: `
-        //   <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        //     <h2 style="color: #1a237e;">Submission Confirmed</h2>
-        //     <p>Thank you for submitting your form to <strong>LyfNest Solutions</strong>!</p>
-        //     <p>We've received your information and will contact you within 24-48 hours.</p>
-        //     <div style="background: #f5f5f5; padding: 20px; margin: 20px 0;">
-        //       <p style="color: #d32f2f; font-weight: bold;">
-        //         Security Notice: We will never ask for sensitive information via email
-        //       </p>
-        //     </div>
-        //   </div>`
-    //   };
-    //   await sgMail.send(userMsg);
-    //   userEmailSent = true;
-    // } catch (userMailError) {
-    //   console.error("User Confirmation Email Failed:", userMailError);
-    // }
+  
 
     // Admin notification
     let adminAlertSent = false;
@@ -577,63 +501,6 @@ const submissionForm = asyncHandler(async (req, res) => {
     } catch (adminEmailError) {
       console.error('Admin Email failed', adminEmailError);
     }
-
-
-    //     const adminMsg = {
-    //       to: "noreply@lyfnestsolutions.com",
-    //       bcc: adminEmails,
-    //       from: process.env.SENDER_EMAIL,
-    //       subject: '🚨 New Form Submission with Appointment',
-    //       text: `New submission from ${formData.firstName} ${formData.lastName} (${email})\n\nReview in admin panel.`,
-    //       html: `
-    //         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-    //           <h2 style="color: #dc3545;">NEW SUBMISSION ALERT</h2>
-    //           <p><strong>User:</strong> ${formData.firstName} ${formData.lastName}</p>
-    //           <p><strong>Email:</strong> ${email}</p>
-    //           <p><strong>Submitted At:</strong> ${new Date().toLocaleString()}</p>
-    //                         <div style="background: #e9f7ef; padding: 15px; margin: 20px 0; border-left: 4px solid #28a745;">
-    //             <h3 style="color: #28a745; margin-top: 0;">Scheduled Contact Slot</h3>
-    //             <p style="margin: 5px 0;"><strong>Assigned Time:</strong> ${formattedSlot}</p>
-    //             <p style="margin: 5px 0;"><strong>Contact Window:</strong><br>
-    //               ${appointmentDetails.contactWindowStart.toLocaleString()} to<br>
-    //               ${appointmentDetails.contactWindowEnd.toLocaleString()}
-    //             </p>
-    //           </div>
-    //           <div style="background: #f8d7da; padding: 15px; margin: 20px 0;">
-    //             <p style="margin: 0;">
-    //               A new form submission has been received. Please review it in the admin panel.
-    //               <p style="background: #dc3545; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
-    //                 REVIEW SUBMISSION
-    //               </p>
-    //             </p>
-    //           </div>
-    //           <p style="color: #6c757d;">
-    //             <strong>Quick Details:</strong>
-    //            <ul>
-    //           <li>Phone: ${formData.phoneNumber}</li>
-    //            <li>Primary Goal: ${formData.primaryGoal}</li>
-    //           <li>Requested Coverage: ${formData.coverageType.join(', ')}</li>
-    //           <li>Submission ID: ${newForm._id}</li>
-    //           <li>Appointment ID: ${newAppointment._id}</li>
-    //         </ul>
-    //           </p>
-    //         </div>`
-    //       // subject: 'New Form Submission',
-    //       // text: `New submission received from ${formData.firstName} ${formData.lastName}`,
-    //       // html: `
-    //       //   <div style="font-family: Arial, sans-serif;">
-    //       //     <h3>New Form Submission</h3>
-    //       //     <p><strong>User:</strong> ${formData.firstName} ${formData.lastName}</p>
-    //       //     <p><strong>Email:</strong> ${email}</p>
-    //       //     <p><strong>Submission ID:</strong> ${newForm._id}</p>
-    //       //   </div>`
-    //     };
-    //     await sgMail.send(adminMsg);
-    //     adminAlertSent = true;
-    //   }
-    // } catch (adminError) {
-    //   console.error("Admin Alert Failed:", adminError);
-    // }
 
     // Create notification
     try {
@@ -733,163 +600,161 @@ const deleteANotifs = asyncHandler(async (req, res) => {
   }
 });
 
-// Add this function to your existing controller file
 
-// const contactUserByEmail = asyncHandler(async (req, res) => {
-//   try {
-//     const { 
-//       appointmentId, 
-//       userEmail, 
-//       userName, 
-//       subject, 
-//       message,
-//       adminName,
-//       zoomLink,
-//       contactMethod = 'email' // email, phone, or both
-//     } = req.body;
 
-//     // Validation
-//     if (!appointmentId || !userEmail || !userName) {
-//       return res.status(400).json({ 
-//         error: 'Missing required fields: appointmentId, userEmail, userName' 
-//       });
-//     }
+const contactUserByEmail = asyncHandler(async (req, res) => {
+  try {
+    const { 
+      appointmentId, 
+      userEmail, 
+      userName, 
+      subject, 
+      message,
+      adminName,
+      zoomLink='https://scheduler.zoom.us/nattye-a/discovery-and-guidance-call',
+      contactMethod = 'email'
+    } = req.body;
 
-//     if (!isValidEmail(userEmail)) {
-//       return res.status(400).json({ error: 'Invalid email format' });
-//     }
+    // Validation
+    if (!appointmentId || !userEmail || !userName) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: appointmentId, userEmail, userName' 
+      });
+    }
 
-//     // Find the appointment to get more details
-//     const appointment = await Appointment.findById(appointmentId).populate('formId');
-//     if (!appointment) {
-//       return res.status(404).json({ error: 'Appointment not found' });
-//     }
+    if (!isValidEmail(userEmail)) {
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
 
-//     // Get form details if available
-//     let formData = null;
-//     if (appointment.formId) {
-//       formData = await Form.findById(appointment.formId);
-//     }
+    // Find the appointment to get more details
+    const appointment = await Appointment.findById(appointmentId).populate('formId');
+    if (!appointment) {
+      return res.status(404).json({ error: 'Appointment not found' });
+    }
 
-//     const  finalZoomLink = zoomLink
-//     // Default subject and message if not provided
-//     const emailSubject = subject || `Follow-up from LyfNest Solutions - Appointment ${formatDate(appointment.assignedSlot, 'shortDate')}`;
+    // Get form details if available
+    let formData = null;
+    if (appointment.formId) {
+      formData = await Form.findById(appointment.formId);
+    }
+
+     const finalZoomLink =  zoomLink;
     
-//     const defaultMessage = `Dear ${userName},
+    // Default subject and message if not provided
+    const emailSubject = subject || `Follow-up from LyfNest Solutions`;
+    
+    const defaultMessage = `Hi ${userName},
+ Thanks for submitting your request on our website! I’m following up as promised to schedule your zoom call to review your request. Please use the link below to pick a time that works best for you:${finalZoomLink}
 
-// I hope this message finds you well. I'm reaching out regarding your recent inquiry with LyfNest Solutions.
+${formData ? `Based on your submitted information, we understand you're interested in:
+${formData.coverageType ? formData.coverageType.join(', ') : 'Insurance coverage'}
 
-// We had scheduled to contact you on ${formatDate(appointment.assignedSlot, 'longDateTime')} and wanted to follow up on your insurance needs.
+Your primary goal: ${formData.primaryGoal}` : ''}
 
-// ${formData ? `Based on your submitted information, we understand you're interested in:
-// ${formData.coverageType ? formData.coverageType.join(', ') : 'Insurance coverage'}
+Best regards,
+${adminName || 'LyfNest Solutions Team'}
+Email: ${process.env.SES_SENDER_EMAIL}`;
 
-// Your primary goal: ${formData.primaryGoal || 'Insurance planning'}` : ''}
+    const emailMessage = message || defaultMessage;
 
-// We'd love to discuss how we can help you achieve your insurance goals. Please feel free to reply to this email or contact us directly.
+    // Prepare SES email parameters
+    const params = {
+      Destination: { ToAddresses: [userEmail] },
+      Message: {
+        Body: {
+          Html: {
+            Charset: "UTF-8",
+            Data: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+              <div style="background: linear-gradient(135deg, #1a237e 0%, #3f51b5 100%); color: white; padding: 30px; border-radius: 10px 10px 0 0;">
+                <h1 style="margin: 0; font-size: 28px;">LyfNest Solutions</h1>
+              </div>
+              
+              <div style="background: #ffffff; padding: 30px; border: 1px solid #e0e0e0; border-top: none;">
+                <div style="white-space: pre-line; line-height: 1.6; color: #333;">
+                  ${emailMessage.replace(/\n/g, '<br>')}
+                </div>
+                
+                <div style="text-align: center; margin: 30px 0;">
+                  <a href="${finalZoomLink}" 
+                     style="background: #4caf50; 
+                            color: white; 
+                            padding: 12px 24px; 
+                            text-decoration: none; 
+                            border-radius: 4px;
+                            font-weight: bold;
+                            display: inline-block;">
+                    Schedule Meeting
+                  </a>
+                </div>
+                
+                ${formData ? `
+                <div style="background: #f8f9fa; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #4caf50;">
+                  <h3 style="color: #2e7d32; margin-top: 0;">Your Inquiry Details:</h3>
+                  <ul style="color: #555; margin: 10px 0;">
+                    <li><strong>Coverage Interest:</strong> ${formData.coverageType ? formData.coverageType.join(', ') : 'Not specified'}</li>
+                    <li><strong>Primary Goal:</strong> ${formData.primaryGoal || 'Not specified'}</li>
+                    <li><strong>Preferred Contact:</strong> ${formData.preferredContactMethod || 'Email'}</li>
+                    ${formData.phoneNumber ? `<li><strong>Phone:</strong> ${formData.phoneNumber}</li>` : ''}
+                  </ul>
+                </div>
+                ` : ''}
+              </div>
+              
+              <div style="background: #f5f5f5; padding: 20px; text-align: center; border-radius: 0 0 10px 10px;">
+                <p style="margin: 0; color: #666; font-size: 14px;">
+                  <strong>LyfNest Solutions</strong><br>
+                  Email: ${process.env.SES_SENDER_EMAIL}<br>
+                </p>
+              </div>
+            </div>
+            `
+          },
+          Text: {
+            Charset: "UTF-8",
+            Data: `${emailMessage}\n\nSchedule your meeting: ${finalZoomLink}`
+          }
+        },
+        Subject: {
+          Charset: "UTF-8",
+          Data: emailSubject
+        }
+      },
+      Source: process.env.SES_SENDER_EMAIL
+    };
 
-// Best regards,
-// ${adminName || 'LyfNest Solutions Team'}
-// Phone: ${process.env.COMPANY_PHONE || '(555) 123-4567'}
-// Email: ${process.env.SENDER_EMAIL}`;
+    // Send the email using AWS SES
+    await sesClient.send(new SendEmailCommand(params));
 
-//     const emailMessage = message || defaultMessage;
+    // Update appointment status
+    appointment.status = 'contacted';
+    appointment.lastContactDate = new Date();
+    appointment.contactMethod = contactMethod;
+    appointment.contactedBy = adminName || 'Admin';
+    await appointment.save();
 
-//     // Prepare email content
-//     const msg = {
-//       to: userEmail,
-//       from: process.env.SENDER_EMAIL,
-//       subject: emailSubject,
-//       text: emailMessage,
-//       html: `
-//         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-//           <div style="background: linear-gradient(135deg, #1a237e 0%, #3f51b5 100%); color: white; padding: 30px; border-radius: 10px 10px 0 0;">
-//             <h1 style="margin: 0; font-size: 28px;">LyfNest Solutions</h1>
-//             <p style="margin: 10px 0 0 0; opacity: 0.9;">Your Insurance Partner</p>
-//           </div>
-          
-//           <div style="background: #ffffff; padding: 30px; border: 1px solid #e0e0e0; border-top: none;">
-//             <div style="white-space: pre-line; line-height: 1.6; color: #333;">
-//               ${emailMessage.replace(/\n/g, '<br>')}
-//             </div>
-            
-//             ${formData ? `
-//             <div style="background: #f8f9fa; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #4caf50;">
-//               <h3 style="color: #2e7d32; margin-top: 0;">Your Inquiry Details:</h3>
-//               <ul style="color: #555; margin: 10px 0;">
-//                 <li><strong>Coverage Interest:</strong> ${formData.coverageType ? formData.coverageType.join(', ') : 'Not specified'}</li>
-//                 <li><strong>Primary Goal:</strong> ${formData.primaryGoal || 'Not specified'}</li>
-//                 <li><strong>Preferred Contact:</strong> ${formData.preferredContactMethod || 'Email'}</li>
-//                 ${formData.phoneNumber ? `<li><strong>Phone:</strong> ${formData.phoneNumber}</li>` : ''}
-//               </ul>
-//             </div>
-//             ` : ''}
-            
-//             <div style="background: #e3f2fd; padding: 20px; margin: 20px 0; border-radius: 8px;">
-//               <h3 style="color: #1565c0; margin-top: 0;">Next Steps:</h3>
-//               <ul style="color: #333; margin: 10px 0;">
-//                 <li>Reply to this email with any questions</li>
-//                 <li>Call us at ${process.env.COMPANY_PHONE || '(555) 123-4567'}</li>
-//                 <li>Schedule a convenient time for a detailed consultation</li>
-//               </ul>
-//             </div>
-//           </div>
-          
-//           <div style="background: #f5f5f5; padding: 20px; text-align: center; border-radius: 0 0 10px 10px;">
-//             <p style="margin: 0; color: #666; font-size: 14px;">
-//               <strong>LyfNest Solutions</strong><br>
-//               Email: ${process.env.SENDER_EMAIL}<br>
-//               ${process.env.COMPANY_PHONE ? `Phone: ${process.env.COMPANY_PHONE}<br>` : ''}
-//               <em>Protecting what matters most to you</em>
-//             </p>
-//           </div>
-//         </div>
-//       `
-//     };
+    res.status(200).json({
+      message: 'Email sent successfully',
+      appointmentId,
+      contactMethod: 'email',
+      sentAt: new Date(),
+      recipient: userEmail,
+      zoomLink: finalZoomLink
+    });
 
-//     // Send the email
-//     await sgMail.send(msg);
+  } catch (error) {
+    console.error("Contact Email Error:", {
+      message: error.message,
+      stack: error.stack,
+      body: req.body
+    });
 
-//     // Update appointment status if needed
-//     if (appointment.status === 'scheduled') {
-//       appointment.status = 'contacted';
-//       appointment.lastContactDate = new Date();
-//       appointment.contactMethod = contactMethod;
-//       appointment.contactedBy = adminName || 'Admin';
-//       await appointment.save();
-//     }
+    res.status(500).json({ 
+      error: 'Failed to send contact email' 
+    });
+  }
+});
 
-//     // Log the contact attempt
-//     console.log(`Email sent to ${userEmail} for appointment ${appointmentId} by ${adminName || 'Admin'}`);
-
-//     res.status(200).json({
-//       message: 'Email sent successfully',
-//       appointmentId,
-//       contactMethod: 'email',
-//       sentAt: new Date(),
-//       recipient: userEmail
-//     });
-
-//   } catch (error) {
-//     console.error("Contact Email Error:", {
-//       message: error.message,
-//       stack: error.stack,
-//       body: req.body
-//     });
-
-//     // Check for specific SendGrid errors
-//     if (error.response?.body?.errors) {
-//       const sgError = error.response.body.errors[0];
-//       return res.status(400).json({ 
-//         error: `Email delivery failed: ${sgError.message}` 
-//       });
-//     }
-
-//     res.status(500).json({ 
-//       error: 'Failed to send contact email' 
-//     });
-//   }
-// });
 
 
 
@@ -903,5 +768,6 @@ module.exports = {
   getAllNotifs,
   createNotifs,
   deleteNotifs,
-  deleteANotifs
+  deleteANotifs,
+  contactUserByEmail
 };
