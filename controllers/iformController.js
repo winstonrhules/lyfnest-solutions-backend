@@ -365,7 +365,7 @@ const submissionForm = asyncHandler(async (req, res) => {
       Dob: dobDate,
       verification: verificationId,
       verifiedAt: new Date(),
-      email: email,
+      email,
       emailVerification: emailVerification._id
     });
 
