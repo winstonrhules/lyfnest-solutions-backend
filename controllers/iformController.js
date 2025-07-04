@@ -304,7 +304,7 @@ const verifyCode = asyncHandler(async (req, res) => {
 
 const submissionForm = asyncHandler(async (req, res) => {
   try {
-    const { verification: verificationId, email, ...formData } = req.body;
+    const { verification: verificationId, Email: email, ...formData } = req.body;
 
     // Validate inputs
     if (!isValidEmail(email)) {
@@ -365,7 +365,7 @@ const submissionForm = asyncHandler(async (req, res) => {
       Dob: dobDate,
       verification: verificationId,
       verifiedAt: new Date(),
-      email,
+      Email: email,
       emailVerification: emailVerification._id
     });
 
