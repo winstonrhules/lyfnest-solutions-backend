@@ -17,7 +17,7 @@ var fformSchema = new mongoose.Schema({
       match: [/^[A-Za-z\s'-]+$/, "Only letters, spaces, apostrophes, and hyphens allowed"]
     },
   
-    email: {
+    Email: {
       type: String,
       required: true,
       unique: true,

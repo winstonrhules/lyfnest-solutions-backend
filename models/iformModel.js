@@ -20,7 +20,7 @@ var iformSchema = new mongoose.Schema({
       },
 
       
-      email: {
+      Email: {
         type: String,
         required: true,
         unique: true,
