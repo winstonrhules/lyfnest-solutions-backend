@@ -18,6 +18,7 @@ const sesClient = new SESClient({
   }
 });
 
+// Initialize Twilio client
 const client = twilio(
   process.env.TWILIO_SID,
   process.env.TWILIO_AUTH_TOKEN
@@ -31,19 +32,18 @@ const CONTACT_WINDOW_START = 24; // hours
 const CONTACT_WINDOW_END = 48;   // hours
 const SLOT_DURATION = 30;        // minutes
 
-
 // Helper functions
 const generateNumericToken = () => crypto.randomInt(100000, 1000000).toString();
 const isE164Format = (phone) => /^\+\d{1,3}\d{6,14}$/.test(phone);
 const isValidEmail = (email) => /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$/.test(email);
 
+// Appointment scheduling logic
 const scheduleAppointment = async () => {
   try {
     const now = new Date();
     const contactWindowStart = new Date(now.getTime() + CONTACT_WINDOW_START * 60 * 60 * 1000);
     const contactWindowEnd = new Date(now.getTime() + CONTACT_WINDOW_END * 60 * 60 * 1000);
     
-    // Get existing appointments in the contact window
     const existingAppointments = await Appointment.find({
       assignedSlot: {
         $gte: contactWindowStart,
@@ -51,7 +51,6 @@ const scheduleAppointment = async () => {
       }
     }).sort({ assignedSlot: 1 });
     
-    // Generate possible time slots (every 30 minutes)
     const slots = [];
     let currentSlot = new Date(contactWindowStart);
     
@@ -60,7 +59,6 @@ const scheduleAppointment = async () => {
       currentSlot = new Date(currentSlot.getTime() + SLOT_DURATION * 60 * 1000);
     }
     
-    // Find first available slot
     let assignedSlot = slots[0];
     
     for (const slot of slots) {
@@ -82,7 +80,7 @@ const scheduleAppointment = async () => {
   } catch (error) {
     console.error("Scheduling Error:", error);
     
-    // Fallback: Random slot in the window
+    // Fallback mechanism
     const now = new Date();
     const randomOffset = Math.floor(
       Math.random() * 
@@ -97,9 +95,7 @@ const scheduleAppointment = async () => {
   }
 };
 
-
-
-
+// Phone verification initiation
 const initialVerificationChecks = asyncHandler(async (req, res) => {
   try {
     const { phoneNumber, phoneType } = req.body;
@@ -129,7 +125,7 @@ const initialVerificationChecks = asyncHandler(async (req, res) => {
     await newVerification.save();
     
     res.status(200).json({
-      message: `Verification ${channel === 'call' ? 'call initiated' : 'Voicecall Sent'}`,
+      message: `Verification ${channel === 'call' ? 'call initiated' : 'SMS sent'}`,
       expiresAt
     });
 
@@ -147,7 +143,7 @@ const initialVerificationChecks = asyncHandler(async (req, res) => {
   }
 });
 
-// Send Email Verification Code
+// Email verification initiation
 const sendEmailVerification = asyncHandler(async (req, res) => {
   const { email } = req.body;
 
@@ -164,89 +160,55 @@ const sendEmailVerification = asyncHandler(async (req, res) => {
     { upsert: true, new: true }
   );
 
-   const params = {
-      Destination: { ToAddresses: [email] },
-      Message: {
-        Body: {
-          Html: {
-            Charset: "UTF-8",
-            Data: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <h2 style="color: #1a237e;">Email Verification</h2>
-              <p>Your verification code is:</p>
-              <div style="background: #f5f5f5; padding: 20px; font-size: 24px; letter-spacing: 2px; margin: 20px 0;">
-                ${token}
-              </div>
-              <p style="color: #616161;">
-                <strong>Important:</strong>
-                <ul>
-                  <li>This code expires in 10 minutes</li>
-                  <li>Never share this code with anyone</li>
-                  <li>If you didn't request this code, please contact support</li>
-                </ul>
-              </p>
-            </div>`
-          },
-          Text: {
-            Charset: "UTF-8",
-            Data: `LyfNest Solutions will NEVER proactively call or text you for this code. DO NOT share it.
-            Your verification code is: ${token}
-            This code is active for 10 minutes from the time of request.`
-          }
-        },
-        Subject: {
+  const params = {
+    Destination: { ToAddresses: [email] },
+    Message: {
+      Body: {
+        Html: {
           Charset: "UTF-8",
-          Data: "Verify Your Email Address"
+          Data: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <h2 style="color: #1a237e;">Email Verification</h2>
+            <p>Your verification code is:</p>
+            <div style="background: #f5f5f5; padding: 20px; font-size: 24px; letter-spacing: 2px; margin: 20px 0;">
+              ${token}
+            </div>
+            <p style="color: #616161;">
+              <strong>Important:</strong>
+              <ul>
+                <li>This code expires in 10 minutes</li>
+                <li>Never share this code with anyone</li>
+                <li>If you didn't request this code, please contact support</li>
+              </ul>
+            </p>
+          </div>`
+        },
+        Text: {
+          Charset: "UTF-8",
+          Data: `
+          LyfNest Solutions will NEVER proactively call or text you for this code. DO NOT share it.
+           Your verification code is: ${token}
+          This code is active for 10 minutes from the time of request.`
         }
       },
-      Source: process.env.SES_SENDER_EMAIL
-    };
-  
-    try {
-      await sesClient.send(new SendEmailCommand(params));
-      res.status(200).json({ message: 'Verification email sent', expiresAt });
-    } catch (error) {
-      console.error('SES Error:', error);
-      res.status(500).json({ error: 'Failed to send verification email' });
-    }
-  });
-  
+      Subject: {
+        Charset: "UTF-8",
+        Data: "Verify Your Email Address"
+      }
+    },
+    Source: process.env.SES_SENDER_EMAIL
+  };
 
-//   const msg = {
-//     to: email,
-//     from: process.env.SENDER_EMAIL,
-//     subject: 'Verify Your Email Address',
-//     text: `LyfNest Solutions will NEVER proactively contact you for this code. DO NOT share it.
-//     Your verification code is: ${token}
-//     This code expires in ${VERIFICATION_EXPIRY_MINUTES} minutes.`,
-//     html: `
-//       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-//         <h2 style="color: #1a237e;">Email Verification</h2>
-//         <p>Your verification code is:</p>
-//         <div style="background: #f5f5f5; padding: 20px; font-size: 24px; letter-spacing: 2px; margin: 20px 0; text-align: center;">
-//           ${token}
-//         </div>
-//         <p style="color: #616161;">
-//           <strong>Important Notice:</strong>
-//           <ul>
-//             <li>This code expires in ${VERIFICATION_EXPIRY_MINUTES} minutes</li>
-//             <li>Never share this code with anyone</li>
-//            <li>If you didn't request this code, please contact support</li>
-//           </ul>
-//         </p>
-//       </div>`
-//   };
+  try {
+    await sesClient.send(new SendEmailCommand(params));
+    res.status(200).json({ message: 'Verification email sent', expiresAt });
+  } catch (error) {
+    console.error('SES Error:', error);
+    res.status(500).json({ error: 'Failed to send verification email' });
+  }
+});
 
-//   try {
-//     await sgMail.send(msg);
-//     res.status(200).json({ message: 'Verification email sent', expiresAt });
-//   } catch (error) {
-//     console.error('SendGrid Error:', error.response?.body || error);
-//     res.status(500).json({ error: 'Failed to send verification email' });
-//   }
-// });
-
-
+// Phone verification code check
 const verifyCode = asyncHandler(async (req, res) => {
   try {
     const { phoneNumber, code } = req.body;
@@ -294,7 +256,7 @@ const verifyCode = asyncHandler(async (req, res) => {
   }
 });
 
-// Verify Email Code
+// Email verification code check
 const verifyEmailCode = asyncHandler(async (req, res) => {
   const { email, code } = req.body;
   const record = await EmailVerification.findOne({ email });
@@ -332,10 +294,22 @@ const verifyEmailCode = asyncHandler(async (req, res) => {
   res.status(200).json({ message: 'Email verified' });
 });
 
-
+// FORM SUBMISSION HANDLER (CRITICAL FIXES)
 const submissionForm = asyncHandler(async (req, res) => {
   try {
-    const { verification: verificationId, Email: email, ...formData } = req.body;
+    // Destructure with proper field names
+    const { 
+      verification: verificationId, 
+      Email: email, 
+      ...formData 
+    } = req.body;
+
+    // Enhanced logging for debugging
+    console.log('Form submission received:', { 
+      verificationId, 
+      email, 
+      formData: Object.keys(formData) 
+    });
 
     // Validate inputs
     if (!isValidEmail(email)) {
@@ -391,73 +365,78 @@ const submissionForm = asyncHandler(async (req, res) => {
 
     // Save form
     const newFform = new Fform({
-      ...formData,
-      Dob: dobDate,
-      verification: verificationId,
-      verifiedAt: new Date(),
-      Email: email,
-      emailVerification: emailVerification._id
+       ...formData,
+            Dob: dobDate,
+            verification: verificationId,
+            verifiedAt: new Date(),
+            Email: email,
+            emailVerification: emailVerification._id
     });
 
-    await newFform.save();
+     const savedForm = await newFform.save();
+      console.log('Form saved successfully:', savedForm._id);
+   
 
      const appointmentDetails = await scheduleAppointment();
         const newAppointment = new Appointment({
-          formId: newFform._id,
+          formId: savedForm._id,
            formType:'finalForm',
            formData: req.body,
           contactWindowStart: appointmentDetails.contactWindowStart,
           contactWindowEnd: appointmentDetails.contactWindowEnd,
           assignedSlot: appointmentDetails.assignedSlot
         });
-        await newAppointment.save();
+
+         const savedAppointment = await newAppointment.save();
+            console.log('Appointment scheduled:', savedAppointment._id);
     
 
     // User confirmation email
     let userEmailSent = false;
-    try {
-      const userParams = {
-              Destination: { ToAddresses: [email] },
-              Message: {
-                Body: {
-                  Html: {
-                    Charset: "UTF-8",
-                    Data: `
-                      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                   <h2 style="color: #1a237e;">Submission Confirmed</h2>
-                    <p>Thank you for submitting your form to <strong>LyfNest Solutions</strong>!</p>
-                    <p>We've received your information and will contact you between 24hours-72hours</p>
-      
-                   <div style="background: #f5f5f5; padding: 20px; margin: 20px 0;">
-              Contact our support team at <a href="mailto:${process.env.SES_SENDER_EMAIL}">${process.env.SES_SENDER_EMAIL}</a>
-                   </div>
-                   <p style="color: #616161;">
-                     <strong>Please note:</strong>
-                     <ul>
-                       <li>This is an automated message - please do not reply</li>
-                       <li>We'll contact you using your preferred method</li>
-                     </ul>
-                   </p>
-                 </div>`
-                  },
-                  Text: {
-                    Charset: "UTF-8",
-                    Data: `Thank you for submitting your form to LyfNest Solutions!\n\nWe've received your information and will contact you within 24-72 hours.\n\nSecurity notice: Never share personal information via email.`,
-                  }
-                },
-                Subject: {
-                  Charset: "UTF-8",
-                  Data: "Form Submission Confirmation"
-                }
-              },
-              Source: process.env.SES_SENDER_EMAIL
-            };
-            await sesClient.send(new SendEmailCommand(userParams));
-            userEmailSent = true;
-          } catch (userMailError) {
-            console.error("User Email Confirmation Failed", userMailError);
-          }
-      
+       try {
+         const userParams = {
+           Destination: { ToAddresses: [email] },
+           Message: {
+             Body: {
+               Html: {
+                 Charset: "UTF-8",
+                 Data:  `
+                     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                     <h2 style="color: #1a237e;">Submission Confirmed</h2>
+                      <p>Thank you for submitting your form to <strong>LyfNest Solutions</strong>!</p>
+                      <p>We've received your information and will contact you between 24hours-72hours</p>
+                     <div style="background: #f5f5f5; padding: 20px; margin: 20px 0;">
+                     Contact our support team at <a href="mailto:${process.env.SES_SENDER_EMAIL}">${process.env.SES_SENDER_EMAIL}</a>
+                     </div>
+                     <p style="color: #616161;">
+                       <strong>Please note:</strong>
+                       <ul>
+                         <li>This is an automated message - please do not reply</li>
+                         <li>We'll contact you using your preferred method</li>
+                       </ul>
+                     </p>
+                   </div>`
+               },
+               Text: {
+                 Charset: "UTF-8",
+                  Data: `Thank you for submitting your form to LyfNest Solutions!\n\nWe've received your information and will contact you within 24-72 hours.\n\nSecurity notice: Never share personal information via email.`,
+               }
+             },
+             Subject: {
+               Charset: "UTF-8",
+               Data: "Form Submission Confirmation"
+             }
+           },
+           Source: process.env.SES_SENDER_EMAIL
+         };
+         
+         await sesClient.send(new SendEmailCommand(userParams));
+         userEmailSent = true;
+         console.log('User confirmation email sent');
+       } catch (userMailError) {
+         console.error("User Email Confirmation Failed", userMailError);
+       }
+   
     //   const userMsg = {
     //     to: email,
     //     from: process.env.SENDER_EMAIL,
@@ -557,11 +536,13 @@ const submissionForm = asyncHandler(async (req, res) => {
                 },
                 Source: process.env.SES_SENDER_EMAIL
               };
-              await sesClient.send(new SendEmailCommand(adminParams));
-            }
-          } catch (adminEmailError) {
-            console.error('Admin Email failed', adminEmailError);
-          }
+               await sesClient.send(new SendEmailCommand(adminParams));
+                     adminAlertSent = true;
+                     console.log('Admin notification sent');
+                   }
+                 } catch (adminEmailError) {
+                   console.error('Admin Email failed', adminEmailError);
+                 }
 
     //   const admins = await User.find({ role: "admin" }).select("email");
     //   if (admins.length > 0) {
@@ -613,8 +594,8 @@ const submissionForm = asyncHandler(async (req, res) => {
       });
 
       await Notification.create({
-        message: `New form submission from ${formData.firstName} ${formData.lastName} ${formattedSlot}`,
-        formType: 'insurance',
+        message: `New Final form submission from ${formData.firstName} ${formData.lastName} ${formattedSlot}`,
+        formType: 'finalForm',
         read: false
       });
     } catch (notifError) {
@@ -633,15 +614,17 @@ const submissionForm = asyncHandler(async (req, res) => {
 
     });
 
-  } catch (error) {
-    console.error("Submission Error:", {
+   } catch (error) {
+    console.error("SUBMISSION FAILURE DETAILS:", {
       message: error.message,
       stack: error.stack,
+      error: error, // Full error object
       body: req.body
     });
-    res.status(500).json({ error: 'Form submission failed' });
+    res.status(500).json({ error: 'Form submission failed: ' + error.message });
   }
 });
+
 
 
 
