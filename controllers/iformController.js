@@ -373,10 +373,12 @@ const submissionForm = asyncHandler(async (req, res) => {
 
     const appointmentDetails = await scheduleAppointment();
         const newAppointment = new Appointment({
-          formId: newIform._id,
-          contactWindowStart: appointmentDetails.contactWindowStart,
-          contactWindowEnd: appointmentDetails.contactWindowEnd,
-          assignedSlot: appointmentDetails.assignedSlot
+           formId: newIform._id,
+           formType:'indexedForm',
+           formData: req.body,
+           contactWindowStart: appointmentDetails.contactWindowStart,
+           contactWindowEnd: appointmentDetails.contactWindowEnd,
+           assignedSlot: appointmentDetails.assignedSlot
         });
         await newAppointment.save();
     
@@ -499,47 +501,7 @@ const submissionForm = asyncHandler(async (req, res) => {
     } catch (adminEmailError) {
       console.error('Admin Email failed', adminEmailError);
     }
-    //   const admins = await User.find({ role: "admin" }).select("email");
-    //   if (admins.length > 0) {
-    //     const adminEmails = admins.map(admin => admin.email);
-    //     const adminMsg = {
-    //       to: "noreply@lyfnestsolutions.com",
-    //       bcc: adminEmails,
-    //       from: process.env.SENDER_EMAIL,
-    //       subject: '🚨 New Form Submission Alert',
-    //       text: `New submission from ${formData.firstName} ${formData.lastName} (${email})\n\nReview in admin panel.`,
-    //       html: `
-    //         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-    //           <h2 style="color: #dc3545;">NEW SUBMISSION ALERT</h2>
-    //           <p><strong>User:</strong> ${formData.firstName} ${formData.lastName}</p>
-    //           <p><strong>Email:</strong> ${email}</p>
-    //           <p><strong>Submitted At:</strong> ${new Date().toLocaleString()}</p>
-    //           <div style="background: #f8d7da; padding: 15px; margin: 20px 0;">
-    //             <p style="margin: 0;">
-    //               A new form submission has been received. Please review it in the admin panel.
-    //               <p style="background: #dc3545; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
-    //                 REVIEW SUBMISSION
-    //               </p>
-    //             </p>
-    //           </div>
-    //           <p style="color: #6c757d;">
-    //             <strong>Quick Details:</strong>
-    //           <ul>
-    //                  <li>Phone: ${formData.phoneNumber}</li>
-    //                  <li>Preferred Term: ${formData.premiumTerms}</li>
-    //                   <li>Coverage : ${formData.coverage}</li>
-    //                  <li>Submission ID: ${newIform._id}</li>
-    //                  </ul>
-    //           </p>
-    //         </div>`
-    //     };
-    //     await sgMail.send(adminMsg);
-    //     adminAlertSent = true;
-    //   }
-    // } catch (adminError) {
-    //   console.error("Admin Alert Failed:", adminError);
-    // }
-
+   
     // Create notification
     try {
         const formattedSlot = appointmentDetails.assignedSlot.toLocaleTimeString([], {

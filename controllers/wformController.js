@@ -372,6 +372,8 @@ const submissionForm = asyncHandler(async (req, res) => {
   const appointmentDetails = await scheduleAppointment();
     const newAppointment = new Appointment({
       formId: newWform._id,
+      formType: 'wholeForm',
+      formData: req.body,
       contactWindowStart: appointmentDetails.contactWindowStart,
       contactWindowEnd: appointmentDetails.contactWindowEnd,
       assignedSlot: appointmentDetails.assignedSlot
