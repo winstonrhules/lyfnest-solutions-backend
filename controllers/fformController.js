@@ -699,7 +699,7 @@ const createNotifs = asyncHandler(async (req, res) => {
     res.status(201).json(newNotif);
   } catch (error) {
     console.error("Create Notification Error:", error);
-    res.status(500).json({ error: 'Failed to create notification' });
+    res.status(500).json({ error: 'Failed to create notification'});
   }
 });
 
@@ -722,10 +722,162 @@ const deleteANotifs = asyncHandler(async (req, res) => {
     res.status(200).json({ success: true });
   } catch (error) {
     console.error("Delete Notification Error:", error);
-    res.status(500).json({ error: 'Failed to delete notification' });
+    res.status(500).json({ error: 'Failed to delete notification'});
+  }
+});
+
+const contactUserByEmail = asyncHandler(async (req, res) => {
+  try {
+    const { 
+      appointmentId, 
+      userEmail, 
+      userName, 
+      subject, 
+      message,
+      adminName,
+      zoomLink='https://scheduler.zoom.us/nattye-a/discovery-and-guidance-call',
+      contactMethod = 'email'
+    } = req.body;
+
+    // Validation
+    if (!appointmentId || !userEmail || !userName) {
+      return res.status(400).json({ 
+        error: 'Missing required fields: appointmentId, userEmail, userName' 
+      });
+    }
+
+    if (!isValidEmail(userEmail)) {
+      return res.status(400).json({ error: 'Invalid email format' });
+    }
+
+    // Find the appointment to get more details
+    const appointment = await Appointment.findById(appointmentId).populate('formId');
+    if (!appointment) {
+      return res.status(404).json({ error: 'Appointment not found' });
+    }
+
+    // Get form details if available
+    let formData = null;
+    if (appointment.formId) {
+      formData = await Fform.findById(appointment.formId);
+    }
+
+     const finalZoomLink =  zoomLink;
+    
+    // Default subject and message if not provided
+    const emailSubject = subject || `Follow-up from LyfNest Solutions`;
+    
+    const defaultMessage = `Hi ${userName},
+ Thanks for submitting your request on our website! I’m following up as promised to schedule your zoom call to review your request. Please use the link below to pick a time that works best for you:${finalZoomLink}
+
+${formData ? `Based on your submitted information, we understand you're interested in:
+   ${formData.coverageAmount} : 'coverage Amount'}
+    Monthly Budget: ${formData.monthlyBudget}` : ''}
+
+Best regards,
+${adminName || 'LyfNest Solutions Team'}
+Email: ${process.env.SES_SENDER_EMAIL}`;
+
+    const emailMessage = message || defaultMessage;
+
+    // Prepare SES email parameters
+    const params = {
+      Destination: { ToAddresses: [userEmail] },
+      Message: {
+        Body: {
+          Html: {
+            Charset: "UTF-8",
+            Data: `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+              <div style="background: linear-gradient(135deg, #1a237e 0%, #3f51b5 100%); color: white; padding: 30px; border-radius: 10px 10px 0 0;">
+                <h1 style="margin: 0; font-size: 28px;">LyfNest Solutions</h1>
+              </div>
+              
+              <div style="background: #ffffff; padding: 30px; border: 1px solid #e0e0e0; border-top: none;">
+                <div style="white-space: pre-line; line-height: 1.6; color: #333;">
+                  ${emailMessage.replace(/\n/g, '<br>')}
+                </div>
+                
+                <div style="text-align: center; margin: 30px 0;">
+                  <a href="${finalZoomLink}" 
+                     style="background: #4caf50; 
+                            color: white; 
+                            padding: 12px 24px; 
+                            text-decoration: none; 
+                            border-radius: 4px;
+                            font-weight: bold;
+                            display: inline-block;">
+                    Schedule Meeting
+                  </a>
+                </div>
+                
+                ${formData ? `
+                <div style="background: #f8f9fa; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #4caf50;">
+                  <h3 style="color: #2e7d32; margin-top: 0;">Your Inquiry Details:</h3>
+                  <ul style="color: #555; margin: 10px 0;">
+                    <li><strong>Monthly Budget:</strong> ${formData.monthlyBudget || 'Not specified'}</li>
+                    <li><strong>Coverage Amount:</strong> ${formData.coverageAmount || 'Not specified'}</li>
+                    <li><strong>Preferred Contact:</strong> ${formData.contactMethod || 'Email'}</li>
+                    ${formData.phoneNumber ? `<li><strong>Phone:</strong> ${formData.phoneNumber}</li>` : ''}
+                       <li>: </li>
+                  </ul>
+                </div>
+                ` : ''}
+              </div>
+              
+              <div style="background: #f5f5f5; padding: 20px; text-align: center; border-radius: 0 0 10px 10px;">
+                <p style="margin: 0; color: #666; font-size: 14px;">
+                  <strong>LyfNest Solutions</strong><br>
+                  Email: ${process.env.SES_SENDER_EMAIL}<br>
+                </p>
+              </div>
+            </div>
+            `
+          },
+          Text: {
+            Charset: "UTF-8",
+            Data: `${emailMessage}\n\nSchedule your meeting: ${finalZoomLink}`
+          }
+        },
+        Subject: {
+          Charset: "UTF-8",
+          Data: emailSubject
+        }
+      },
+      Source: process.env.SES_SENDER_EMAIL
+    };
+
+    // Send the email using AWS SES
+    await sesClient.send(new SendEmailCommand(params));
+
+    // Update appointment status
+    appointment.status = 'contacted';
+    appointment.lastContactDate = new Date();
+    appointment.contactMethod = contactMethod;
+    appointment.contactedBy = adminName || 'Admin';
+    await appointment.save();
+
+    res.status(200).json({
+      message: 'Email sent successfully',
+      appointmentId,
+      contactMethod: 'email',
+      sentAt: new Date(),
+      recipient: userEmail,
+      zoomLink: finalZoomLink
+    });
+
+  } catch (error) {
+    console.error("Contact Email Error:", {
+      message: error.message,
+      stack: error.stack,
+      body: req.body
+    });
+
+    res.status(500).json({ 
+      error: 'Failed to send contact email' 
+    });
   }
 });
 
 
-
-module.exports = {initialVerificationChecks, sendEmailVerification, verifyCode, verifyEmailCode, submissionForm, getallFforms, getNotifs, getAllNotifs, createNotifs, deleteNotifs, deleteANotifs}
+module.exports = {initialVerificationChecks, sendEmailVerification, verifyCode, verifyEmailCode, submissionForm, getallFforms, getNotifs, getAllNotifs, contactUserByEmail, createNotifs, deleteNotifs, deleteANotifs}
