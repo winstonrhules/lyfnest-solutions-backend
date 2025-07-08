@@ -784,7 +784,7 @@ Email: ${process.env.SES_SENDER_EMAIL}`;
       }
       
     }
-    res.status(200).json( responseData);
+
      
       // appointmentId:appointment._id.toString(),
       // contactMethod: 'email',
