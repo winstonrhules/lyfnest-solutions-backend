@@ -769,17 +769,29 @@ Email: ${process.env.SES_SENDER_EMAIL}`;
     appointment.lastContactDate = new Date();
     appointment.contactMethod = contactMethod;
     appointment.contactedBy = adminName || 'Admin';
-    await appointment.save();
+    const updatedAppointment = await appointment.save();
 
-    res.status(200).json({
+    const responseData = {
+      success:true,
       message: 'Email sent successfully',
-      appointmentId,
-      contactMethod: 'email',
-      sentAt: new Date(),
-      recipient: userEmail,
-      zoomLink: finalZoomLink
-    });
-
+      appointment:{
+        id:updatedAppointment._id.toString(),
+        status:updatedAppointment.status,
+        contactMethod:updatedAppointment.contactMethod,
+        contactedBy:updatedAppointment.contactedBy,
+        lastContactDate:updatedAppointment.lastContactDate,
+        emailSent:true,
+      }
+      
+    }
+    res.status(200).json( responseData);
+     
+      // appointmentId:appointment._id.toString(),
+      // contactMethod: 'email',
+      // sentAt: new Date(),
+      // recipient: userEmail,
+      // zoomLink: finalZoomLink
+     
   } catch (error) {
     console.error("Contact Email Error:", {
       message: error.message,
