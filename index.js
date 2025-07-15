@@ -15,6 +15,7 @@ const wformRouter = require('./routes/wformRoutes');
 const iformRouter = require('./routes/iformRoutes');
 const fformRouter = require('./routes/fformRoutes');
 const appointemntRouter = require('./routes/appointmentRoutes');
+const clientContactRouter = require('./routes/clientContactRoutes');
 // Middleware
 const corsConfig = require('./middlewares/corsConfig');
 const robotsBlock = require('./middlewares/robotsHeader');
@@ -88,6 +89,12 @@ Disallow: /api/tforms/
 Disallow: /api/wforms/
 Disallow: /api/iforms/
 Disallow: /api/fforms/
+Disallow: /api/appointments/
+Disallow: /api/client-contacts/
+Disallow: /api/auth/
+Disallow: /api/csp-violation-report-endpoint
+Disallow: /api/appointment-forms/
+
 
 
 
@@ -181,6 +188,8 @@ app.use('/api/wforms', wformRouter);
 app.use('/api/iforms', iformRouter);
 app.use('/api/fforms', fformRouter);
 app.use('/api/appointments', appointemntRouter);
+app.use('/api/contacts', clientContactRouter);
+
 
 // 6. Admin Routes - Serve Admin SPA
 const adminPaths = [
@@ -191,7 +200,27 @@ const adminPaths = [
   '/team',
   '/claims',
   '/login',
-  '/signup'
+  '/signup',
+  '/admin/appointment-forms',
+  '/admin/appointment-forms/*',
+  '/admin/contacts',
+  '/admin/contacts/*',
+  '/admin/appointments',
+  '/admin/appointments/*',
+  '/admin/forms',
+  '/admin/forms/*',
+  '/admin/tforms',
+  '/admin/tforms/*',
+  '/admin/wforms',
+  '/admin/wforms/*',
+  '/admin/iforms',
+  '/admin/iforms/*',
+  '/admin/fforms',
+  '/admin/fforms/*',
+  '/admin/auth',
+  '/admin/auth/*',
+  '/admin/csp-violation-report-endpoint',
+  '/admin/csp-violation-report-endpoint/*'
 ];
 
 app.get(adminPaths, (req, res) => {

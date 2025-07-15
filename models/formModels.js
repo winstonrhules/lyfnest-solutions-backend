@@ -270,6 +270,12 @@ var formSchema = new mongoose.Schema({
         required: true,
       },
 
+     appointments: [{
+     type: mongoose.Schema.Types.ObjectId,
+      ref: 'Appointment'
+    }],
+
+    
       contactTime: {
         type: String,
         enum: ["morning", "afternoon", "evening"],
@@ -303,6 +309,9 @@ var formSchema = new mongoose.Schema({
         next();
       }
     });
+
+   
+
 
 //Export the model
 module.exports = mongoose.model('Form', formSchema);

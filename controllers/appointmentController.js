@@ -6,40 +6,6 @@ const Iform = require('../models/iformModel');
 const Tform = require('../models/tformModels');
 const Wform = require('../models/wformModels');
 
-// const getAppointments = asyncHandler(async (req, res) => {
-//   try {
-//     const appointments = await Appointment.find()
-//       .populate('formId', 'firstName lastName Email phoneNumber primaryGoal coverageType Dob')
-//       .sort({ assignedSlot: 1 });
-    
-//     const formattedAppointments = appointments.map(app => ({
-//       id: app._id,
-//       formId: app.formId._id,
-//       formType: app.formType, 
-//       formData: app.formData,
-//       contactWindowStart: app.contactWindowStart,
-//       contactWindowEnd: app.contactWindowEnd,
-//       assignedSlot: app.assignedSlot,
-//       status: app.status || 'scheduled',
-//       user: {
-//         firstName: app.formId.firstName,
-//         lastName: app.formId.lastName,
-//         email: app.formId.Email,
-//         phoneNumber: app.formId.phoneNumber,
-//         dob: app.formId.Dob
-//       },
-//       goals: [
-//         app.formId.primaryGoal,
-//         ...(app.formId.coverageType || [])
-//       ]
-//     }));
-
-//     res.status(200).json(formattedAppointments);
-//   } catch (error) {
-//     console.error("Get Appointments Error:", error);
-//     res.status(500).json({ error: 'Failed to retrieve appointments' });
-//   }
-// });
 
 const getAppointments = asyncHandler(async (req, res) => {
   try {
@@ -49,7 +15,7 @@ const getAppointments = asyncHandler(async (req, res) => {
       // Default values for user data
       let userData = {
         firstName: 'N/A',
-        lastName: 'N/A',
+        lastName: 'N/A',  
         Email: 'N/A',
         phoneNumber: 'N/A',
         Dob: null,
@@ -241,8 +207,51 @@ const rescheduleAppointment = asyncHandler(async (req, res) => {
   }
 });
 
+const deleteAppointment = asyncHandler(async (req, res) => {
+  try {
+    const appointment = await Appointment.findById(req.params.id);
+    
+    if (!appointment) {
+      return res.status(404).json({ error: 'Appointment not found' });
+    }
+    
+    // Delete the appointment
+    await appointment.remove();
+    
+    // Also delete the associated form
+    // try {
+    //   switch(appointment.formType) {
+    //     case 'mainForm':
+    //       await Form.findByIdAndDelete(appointment.formId);
+    //       break;
+    //     case 'termForm':
+    //       await Tform.findByIdAndDelete(appointment.formId);
+    //       break;
+    //     case 'wholeForm':
+    //       await Wform.findByIdAndDelete(appointment.formId);
+    //       break;
+    //     case 'indexedForm':
+    //       await Iform.findByIdAndDelete(appointment.formId);
+    //       break;
+    //     case 'finalForm':
+    //       await Fform.findByIdAndDelete(appointment.formId);
+    //       break;
+    //   }
+    // } catch (formError) {
+    //   console.error("Form deletion error:", formError);
+    // }
+    
+    res.status(200).json({ success: true, message: 'Appointment deleted successfully' });
+  } catch (error) {
+    console.error("Delete Appointment Error:", error);
+    res.status(500).json({ error: 'Failed to delete appointment' });
+  }
+});
+
+
 module.exports = {
   getAppointments,
   updateAppointmentStatus,
-  rescheduleAppointment
+  rescheduleAppointment,
+  deleteAppointment
 };

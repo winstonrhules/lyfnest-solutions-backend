@@ -567,6 +567,24 @@ const getallTforms  = asyncHandler(async (req, res) => {
   }
 });
 
+const deleteForm = asyncHandler(async (req, res) => {
+  try {
+    const form = await Tform.findById(req.params.id);
+    if (!form) {
+      return res.status(404).json({ error: 'Form not found' });
+    }
+    
+    // Delete associated appointment
+    await Appointment.deleteOne({ formId: form._id });
+    
+    await form.remove();
+    res.status(200).json({ success: true, message: 'Form and appointment deleted successfully' });
+  } catch (error) {
+    console.error("Delete Form Error:", error);
+    res.status(500).json({ error: 'Failed to delete form' });
+  }
+})
+
 // Notification handlers
 const getAllNotifs = asyncHandler(async (req, res) => {
   try {
@@ -775,6 +793,7 @@ module.exports = {
   verifyEmailCode, 
   submissionForm, 
   getallTforms, 
+  deleteForm,
   getAllNotifs, 
   createNotifs, 
   deleteNotifs, 

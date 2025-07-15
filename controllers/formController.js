@@ -361,11 +361,12 @@ const submissionForm = asyncHandler(async (req, res) => {
     // Save form
     const newForm = new Form({
       ...formData,
-      Dob: dobDate,
+      Dob: dobDate,    
       verification: verificationId,
       verifiedAt: new Date(),
       Email: email,
-      emailVerification: emailVerification._id
+      emailVerification: emailVerification._id,
+      
     });
 
     await newForm.save();
@@ -555,6 +556,41 @@ const getallForms = asyncHandler(async (req, res) => {
     res.status(500).json({ error: 'Failed to retrieve forms' });
   }
 });
+
+
+// const deleteForm = asyncHandler(async (req, res) => {
+//   try {
+//     const form = await Form.findById(req.params.id);
+//     if (!form) {
+//         return res.status(404).json({ error: 'Form not found' });
+//     }
+//     await form.remove();
+//     res.status(200).json({ success: true, message: 'Form  and appointment deleted successfully' });
+//   } catch (error) {
+//     console.error("Delete Form Error:", error);
+//     res.status(500).json({ error: 'Failed to delete form' });
+//   }
+// })
+
+
+const deleteForm = asyncHandler(async (req, res) => {
+  try {
+    const form = await Form.findById(req.params.id);
+    if (!form) {
+      return res.status(404).json({ error: 'Form not found' });
+    }
+    
+    // Delete associated appointment
+    await Appointment.deleteOne({ formId: form._id });
+    
+    await form.remove();
+    res.status(200).json({ success: true, message: 'Form and appointment deleted successfully' });
+  } catch (error) {
+    console.error("Delete Form Error:", error);
+    res.status(500).json({ error: 'Failed to delete form' });
+  }
+})
+
 
 // Notifications
 const getAllNotifs = asyncHandler(async (req, res) => {
@@ -767,9 +803,10 @@ module.exports = {
   verifyEmailCode,
   submissionForm,
   getallForms,
+  deleteForm,
   getAllNotifs,
   createNotifs,
   deleteNotifs,
   deleteANotifs,
   contactUserByEmail
-};
+}
