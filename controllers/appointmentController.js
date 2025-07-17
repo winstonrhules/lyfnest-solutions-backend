@@ -216,30 +216,8 @@ const deleteAppointment = asyncHandler(async (req, res) => {
     }
     
     // Delete the appointment
-    await appointment.remove();
+    await appointment.deleteOne({_id:req.params.id});
     
-    // Also delete the associated form
-    // try {
-    //   switch(appointment.formType) {
-    //     case 'mainForm':
-    //       await Form.findByIdAndDelete(appointment.formId);
-    //       break;
-    //     case 'termForm':
-    //       await Tform.findByIdAndDelete(appointment.formId);
-    //       break;
-    //     case 'wholeForm':
-    //       await Wform.findByIdAndDelete(appointment.formId);
-    //       break;
-    //     case 'indexedForm':
-    //       await Iform.findByIdAndDelete(appointment.formId);
-    //       break;
-    //     case 'finalForm':
-    //       await Fform.findByIdAndDelete(appointment.formId);
-    //       break;
-    //   }
-    // } catch (formError) {
-    //   console.error("Form deletion error:", formError);
-    // }
     
     res.status(200).json({ success: true, message: 'Appointment deleted successfully' });
   } catch (error) {
