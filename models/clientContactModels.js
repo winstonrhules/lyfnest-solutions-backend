@@ -8,7 +8,6 @@ const clientContactSchema = new mongoose.Schema({
   Email: {
     type: String,
     required: true,
-    unique: true,
     match: /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$/
   },
   phoneNumber: { type: String, required: true },
