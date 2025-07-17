@@ -55,4 +55,14 @@ const clientContactSchema = new mongoose.Schema({
   notes: String
 }, { timestamps: true });
 
+clientContactSchema.index({policyStatus:1})
+clientContactSchema.index({Dob:1})
+clientContactSchema.index({annualReviewDate:1})
+clientContactSchema.index({nextFollowUpAt:1})
+clientContactSchema.index({lastContactedAt:1})
+clientContactSchema.index({clientSince:1})
+
+
+
+
 module.exports = mongoose.model('ClientContact', clientContactSchema);

@@ -39,8 +39,9 @@ const getAllClientContacts = asyncHandler(async (req, res) => {
 });
 
  const calculateEngagementMetrics = asyncHandler (async (req, res) => {
-  
-  const now = new Date();
+  try{
+
+    const now = new Date();
   
   // Calculate date ranges
   const currentYear = now.getFullYear();
@@ -81,10 +82,10 @@ const getAllClientContacts = asyncHandler(async (req, res) => {
     newClients
   ] = await Promise.all([
     // Active clients
-  await  ClientContact.find({ policyStatus: 'active' }),
+    ClientContact.find({ policyStatus: 'active' }),
     
     // Inactive clients
-  await  ClientContact.find({ 
+   ClientContact.find({ 
       policyStatus: { $in: ['inactive', 'lapsed', 'cancelled'] } 
     }),
     
@@ -112,12 +113,12 @@ const getAllClientContacts = asyncHandler(async (req, res) => {
     ]),
     
     // Birthdays this month
-   await ClientContact.find({ 
+    ClientContact.find({ 
       $expr: { $eq: [{ $month: "$Dob" }, currentMonth] } 
     }),
     
     // Annual reviews this month
-  await  ClientContact.find({
+    ClientContact.find({
       annualReviewDate: {
         $gte: startOfMonth,
         $lte: endOfMonth
@@ -125,13 +126,13 @@ const getAllClientContacts = asyncHandler(async (req, res) => {
     }),
     
     // Overdue follow-ups
-    await ClientContact.find({
+    ClientContact.find({
       nextFollowUpAt: { $lt: now },
       policyStatus: 'active'
     }),
     
     // Reviewed this month
-  await  ClientContact.find({
+   ClientContact.find({
       lastContactedAt: {
         $gte: startOfMonth,
         $lte: endOfMonth
@@ -139,12 +140,12 @@ const getAllClientContacts = asyncHandler(async (req, res) => {
     }),
     
     // New clients (last 30 days)
- await ClientContact.find({
+   ClientContact.find({
       clientSince: { $gte: thirtyDaysAgo }
     })
   ]);
 
-  return {
+  res.status(200).json({
     activeClients,
     inactiveClients,
     birthdaysThisWeek,
@@ -153,7 +154,14 @@ const getAllClientContacts = asyncHandler(async (req, res) => {
     overdueFollowUps,
     reviewedThisMonth,
     newClients
-  };
+  });
+  }catch(error){
+    res.status(500).json({
+      status:"error",
+      message:"server error:" + error.message
+    })
+  }
+  
 });
 
 
