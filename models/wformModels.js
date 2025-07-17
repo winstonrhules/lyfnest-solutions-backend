@@ -274,4 +274,53 @@ var wformSchema = new mongoose.Schema({
     });
 
 
+    wformSchema.pre('remove', async function(next) {
+  try {
+    // Delete all appointments associated with this form
+    await mongoose.model('Appointment').deleteMany({ formId: this._id });
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Pre-deleteOne middleware
+wformSchema.pre('deleteOne', async function(next) {
+  try {
+    const docToDelete = await this.model.findOne(this.getQuery());
+    if (docToDelete) {
+      await mongoose.model('Appointment').deleteMany({ formId: docToDelete._id });
+    }
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Pre-deleteMany middleware
+wformSchema.pre('deleteMany', async function(next) {
+  try {
+    const docsToDelete = await this.model.find(this.getQuery());
+    const formIds = docsToDelete.map(doc => doc._id);
+    await mongoose.model('Appointment').deleteMany({ formId: { $in: formIds } });
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Pre-findOneAndDelete middleware
+wformSchema.pre('findOneAndDelete', async function(next) {
+  try {
+    const docToDelete = await this.model.findOne(this.getQuery());
+    if (docToDelete) {
+      await mongoose.model('Appointment').deleteMany({ formId: docToDelete._id });
+    }
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+
 module.exports = mongoose.model('Wform', wformSchema);

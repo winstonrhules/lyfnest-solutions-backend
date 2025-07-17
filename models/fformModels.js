@@ -273,5 +273,54 @@ fformSchema.pre("save", function (next) {
       }
     });
 
+    fformSchema.pre('remove', async function(next) {
+  try {
+    // Delete all appointments associated with this form
+    await mongoose.model('Appointment').deleteMany({ formId: this._id });
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Pre-deleteOne middleware
+fformSchema.pre('deleteOne', async function(next) {
+  try {
+    const docToDelete = await this.model.findOne(this.getQuery());
+    if (docToDelete) {
+      await mongoose.model('Appointment').deleteMany({ formId: docToDelete._id });
+    }
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Pre-deleteMany middleware
+fformSchema.pre('deleteMany', async function(next) {
+  try {
+    const docsToDelete = await this.model.find(this.getQuery());
+    const formIds = docsToDelete.map(doc => doc._id);
+    await mongoose.model('Appointment').deleteMany({ formId: { $in: formIds } });
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Pre-findOneAndDelete middleware
+fformSchema.pre('findOneAndDelete', async function(next) {
+  try {
+    const docToDelete = await this.model.findOne(this.getQuery());
+    if (docToDelete) {
+      await mongoose.model('Appointment').deleteMany({ formId: docToDelete._id });
+    }
+    next();
+  } catch (error) {
+    next(error);
+  }
+});
+
+
 //Export the model
 module.exports = mongoose.model('Fform', fformSchema);
