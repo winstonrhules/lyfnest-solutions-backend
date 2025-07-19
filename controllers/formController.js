@@ -777,7 +777,8 @@ Email: ${process.env.SES_SENDER_EMAIL}`;
       contactMethod: 'email',
       sentAt: new Date(),
       recipient: userEmail,
-      zoomLink: finalZoomLink
+      zoomLink: finalZoomLink,
+      emailSent:true
     });
 
   } catch (error) {
