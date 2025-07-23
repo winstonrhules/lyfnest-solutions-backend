@@ -703,11 +703,10 @@ Email: ${process.env.SES_SENDER_EMAIL}`;
           Html: {
             Charset: "UTF-8",
             Data: `
-            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-              <div style="background: linear-gradient(135deg, #1a237e 0%, #3f51b5 100%); color: white; padding: 30px; border-radius: 10px 10px 0 0;">
-                <h1 style="margin: 0; font-size: 28px;">LyfNest Solutions</h1>
-              </div>
-              
+                               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                     <div style="background: #a4dcd7; color: white; padding: 30px; border-radius: 10px 10px 0 0 display: flex; align-items: center; justify-content: center;">
+                  <img src="https://res.cloudinary.com/dma2ht84k/image/upload/v1753279441/lyfnest-logo_byfywb.png" alt="LyfNest Solutions Logo" style="width: 50px; height: 50px; margin-right: 20px;"
+                     </div>
               <div style="background: #ffffff; padding: 30px; border: 1px solid #e0e0e0; border-top: none;">
                 <div style="white-space: pre-line; line-height: 1.6; color: #333;">
                   ${emailMessage.replace(/\n/g, '<br>')}
@@ -765,20 +764,27 @@ Email: ${process.env.SES_SENDER_EMAIL}`;
     await sesClient.send(new SendEmailCommand(params));
 
     // Update appointment status
-    appointment.status = 'contacted';
-    appointment.lastContactDate = new Date();
-    appointment.contactMethod = contactMethod;
-    appointment.contactedBy = adminName || 'Admin';
-    await appointment.save();
+     try {
+  appointment.status = 'contacted';
+  appointment.lastContactDate = new Date();
+  appointment.contactMethod = contactMethod;
+  appointment.contactedBy = adminName || 'Admin';
+
+  await appointment.save();
+} catch (err) {
+  console.error("Error saving appointment update:", err);
+  return res.status(500).json({ error: 'Email sent, but failed to update appointment.' });
+}
+
 
     res.status(200).json({
-      success:true,
       message: 'Email sent successfully',
-      appointmentId:appointment._id.toString,
+      appointmentId,
       contactMethod: 'email',
       sentAt: new Date(),
       recipient: userEmail,
-      zoomLink: finalZoomLink
+      zoomLink: finalZoomLink,
+      emailSent:true
     });
 
   } catch (error) {
@@ -789,7 +795,7 @@ Email: ${process.env.SES_SENDER_EMAIL}`;
     });
 
     res.status(500).json({ 
-      error: 'Failed to send contact email' 
+      message: 'Failed to send contact email' 
     });
   }
 });

@@ -30,9 +30,14 @@ const appointmentSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['scheduled', 'completed', 'missed'],
+    enum: ['scheduled', 'completed', 'missed', 'contacted'],
     default: 'scheduled'
-  }
+  },
+  
+lastContactDate: Date,
+contactMethod: String,
+contactedBy: String,
+  
 }, { timestamps: true });
 
 module.exports = mongoose.model('Appointment', appointmentSchema);
