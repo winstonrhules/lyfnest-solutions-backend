@@ -701,53 +701,105 @@ Email: ${process.env.SES_SENDER_EMAIL}`;
       Message: {
         Body: {
           Html: {
-            Charset: "UTF-8",
-            Data: `
-              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-              <div style="background: #a4dcd7; color: white; padding: 30px; border-radius: 10px 10px 0 0; display: flex; align-items: center; justify-content: center;">
-              <img src="https://res.cloudinary.com/dma2ht84k/image/upload/v1753279441/lyfnest-logo_byfywb.png" alt="LyfNest Solutions Logo" style="width: 50px; height: 50px; margin-right: 20px;">
-              </div>
+  Charset: "UTF-8",
+  Data: `
+  <!DOCTYPE html>
+  <html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>LyfNest Welcome Email</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600&display=swap" rel="stylesheet" />
+  </head>
+  <body style="margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; background-color: #f3f7f6; color: #333;">
+    <div style="max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #dcebea;">
+      <div style="background-color: #e1f0ef; position: relative; padding: 20px; overflow: hidden;">
+        <img src="https://res.cloudinary.com/dma2ht84k/image/upload/v1753279441/lyfnest-logo_byfywb.png" alt="LyfNest Logo" style="width: 60px; height: auto; position: absolute; top: 20px; left: 20px; z-index: 2;">
+        <h1 style="font-family: 'Poppins', sans-serif; font-size: 28px; font-weight: 600; text-align: center; margin: 0; color: #0e94d0; letter-spacing: 1.5px; position: relative; z-index: 2;">WELCOME!</h1>
+      </div>
+      <div style="padding: 30px; font-size: 16px; line-height: 1.6; color: #2f4f4f;">
+        <p>Hi ${userName},</p>
+        <p>Thanks for submitting your request on our website! I’m following up as promised to schedule your Zoom call to review your request. Please use the link below to pick a time that works best for you:</p>
+
+        <div style="text-align: center; margin: 30px 0;">
+          <a href="${finalZoomLink}" style="background-color: #34a853; color: #ffffff; padding: 12px 24px; font-size: 16px; font-weight: bold; border-radius: 8px; text-decoration: none; display: inline-block; box-shadow: 0 3px 6px rgba(0,0,0,0.1);">
+            Schedule Meeting
+          </a>
+        </div>
+
+        ${formData ? `
+        <div style="background: #f8f9fa; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #4caf50;">
+          <h3 style="color: #2e7d32; margin-top: 0;">Your Inquiry Details:</h3>
+          <ul style="color: #555; margin: 10px 0;">
+            <li><strong>Coverage Interest:</strong> ${formData.coverageType ? formData.coverageType.join(', ') : 'Not specified'}</li>
+            <li><strong>Primary Goal:</strong> ${formData.primaryGoal || 'Not specified'}</li>
+            <li><strong>Preferred Contact:</strong> ${formData.preferredContactMethod || 'Email'}</li>
+            ${formData.phoneNumber ? `<li><strong>Phone:</strong> ${formData.phoneNumber}</li>` : ''}
+          </ul>
+        </div>` : ''}
+
+        <p>Best regards,<br/>
+        ${adminName || 'LyfNest Solutions Team'}<br/>
+        <a href="mailto:${process.env.SES_SENDER_EMAIL}" style="color: #1a73e8; text-decoration: none;">${process.env.SES_SENDER_EMAIL}</a></p>
+      </div>
+      <div style="background-color: #f0f5f4; text-align: center; padding: 20px; font-size: 14px; color: #666;">
+        LyfNest Solutions<br/>
+        Email: <a href="mailto:${process.env.SES_SENDER_EMAIL}" style="color: #339989; text-decoration: none;">${process.env.SES_SENDER_EMAIL}</a>
+      </div>
+    </div>
+  </body>
+  </html>
+  `
+  },
+
+          // Html: {
+          //   Charset: "UTF-8",
+          //   Data: `
+          //     <div style="margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; background-color: #f3f7f6;  color: #333;">
+          //     <div style="background: #a4dcd7; color: white; padding: 30px; border-radius: 10px 10px 0 0; display: flex; align-items: center; justify-content: center;">
+          //     <img src="https://res.cloudinary.com/dma2ht84k/image/upload/v1753279441/lyfnest-logo_byfywb.png" alt="LyfNest Solutions Logo" style="width: 60px; height: auto; position: absolute; top: 20px; left: 20px; z-index: 2;">
+          //     </div>
               
-              <div style="background: #ffffff; padding: 30px; border: 1px solid #e0e0e0; border-top: none;">
-                <div style="white-space: pre-line; line-height: 1.6; color: #333;">
-                  ${emailMessage.replace(/\n/g, '<br>')}
-                </div>
+          //     <div style="background: #ffffff; padding: 30px; border: 1px solid #e0e0e0; border-top: none;">
+          //       <div style="white-space: pre-line; line-height: 1.6; color: #333;">
+          //         ${emailMessage.replace(/\n/g, '<br>')}
+          //       </div>
                 
-                <div style="text-align: center; margin: 30px 0;">
-                  <a href="${finalZoomLink}" 
-                     style="background: #4caf50; 
-                            color: white; 
-                            padding: 12px 24px; 
-                            text-decoration: none; 
-                            border-radius: 4px;
-                            font-weight: bold;
-                            display: inline-block;">
-                    Schedule Meeting
-                  </a>
-                </div>
+          //       <div style="text-align: center; margin: 30px 0;">
+          //         <a href="${finalZoomLink}" 
+          //            style="background: #4caf50; 
+          //                   color: white; 
+          //                   padding: 12px 24px; 
+          //                   text-decoration: none; 
+          //                   border-radius: 4px;
+          //                   font-weight: bold;
+          //                   display: inline-block;">
+          //           Schedule Meeting
+          //         </a>
+          //       </div>
                 
-                ${formData ? `
-                <div style="background: #f8f9fa; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #4caf50;">
-                  <h3 style="color: #2e7d32; margin-top: 0;">Your Inquiry Details:</h3>
-                  <ul style="color: #555; margin: 10px 0;">
-                    <li><strong>Coverage Interest:</strong> ${formData.coverageType ? formData.coverageType.join(', ') : 'Not specified'}</li>
-                    <li><strong>Primary Goal:</strong> ${formData.primaryGoal || 'Not specified'}</li>
-                    <li><strong>Preferred Contact:</strong> ${formData.preferredContactMethod || 'Email'}</li>
-                    ${formData.phoneNumber ? `<li><strong>Phone:</strong> ${formData.phoneNumber}</li>` : ''}
-                  </ul>
-                </div>
-                ` : ''}
-              </div>
+          //       ${formData ? `
+          //       <div style="background: #f8f9fa; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #4caf50;">
+          //         <h3 style="color: #2e7d32; margin-top: 0;">Your Inquiry Details:</h3>
+          //         <ul style="color: #555; margin: 10px 0;">
+          //           <li><strong>Coverage Interest:</strong> ${formData.coverageType ? formData.coverageType.join(', ') : 'Not specified'}</li>
+          //           <li><strong>Primary Goal:</strong> ${formData.primaryGoal || 'Not specified'}</li>
+          //           <li><strong>Preferred Contact:</strong> ${formData.preferredContactMethod || 'Email'}</li>
+          //           ${formData.phoneNumber ? `<li><strong>Phone:</strong> ${formData.phoneNumber}</li>` : ''}
+          //         </ul>
+          //       </div>
+          //       ` : ''}
+          //     </div>
               
-              <div style="background: #f5f5f5; padding: 20px; text-align: center; border-radius: 0 0 10px 10px;">
-                <p style="margin: 0; color: #666; font-size: 14px;">
-                  <strong>LyfNest Solutions</strong><br>
-                  Email: ${process.env.SES_SENDER_EMAIL}<br>
-                </p>
-              </div>
-            </div>
-            `
-          },
+          //     <div style="background: #f5f5f5; padding: 20px; text-align: center; border-radius: 0 0 10px 10px;">
+          //       <p style="margin: 0; color: #666; font-size: 14px;">
+          //         <strong>LyfNest Solutions</strong><br>
+          //         Email: ${process.env.SES_SENDER_EMAIL}<br>
+          //       </p>
+          //     </div>
+          //   </div>
+          //   `
+          // },
           Text: {
             Charset: "UTF-8",
             Data: `${emailMessage}\n\nSchedule your meeting: ${finalZoomLink}`
