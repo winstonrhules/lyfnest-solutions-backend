@@ -15,11 +15,18 @@ const appointmentSchema = new mongoose.Schema({
     type: mongoose.Schema.Types.Mixed, 
     required: true,
   },
+
+  zoomMeeting: {
+  type: mongoose.Schema.Types.ObjectId,
+  ref: 'ZoomMeeting'
+},
+
   
   contactWindowStart: {
     type: Date,
     required: true
   },
+  
   contactWindowEnd: {
     type: Date,
     required: true
@@ -33,7 +40,17 @@ const appointmentSchema = new mongoose.Schema({
     enum: ['scheduled', 'completed', 'missed', 'contacted'],
     default: 'scheduled'
   },
-  
+  zoomMeetingId: {
+    type: String,
+    required: true,
+    unique: true
+  },
+  source: {
+    type: String,
+    enum: ['zoom', 'manual'],
+    default: 'manual'
+  },
+
 lastContactDate: Date,
 contactMethod: String,
 contactedBy: String,

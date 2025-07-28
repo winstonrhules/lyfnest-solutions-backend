@@ -14,8 +14,9 @@ const tformRouter = require('./routes/tformRoutes');
 const wformRouter = require('./routes/wformRoutes');
 const iformRouter = require('./routes/iformRoutes');
 const fformRouter = require('./routes/fformRoutes');
-const appointemntRouter = require('./routes/appointmentRoutes');
+const appointmentRouter = require('./routes/appointmentRoutes');
 const clientContactRouter = require('./routes/clientContactRoutes');
+const zoomRoutes = require('./routes/zoomRoutes');
 // Middleware
 const corsConfig = require('./middlewares/corsConfig');
 const robotsBlock = require('./middlewares/robotsHeader');
@@ -94,6 +95,7 @@ Disallow: /api/client-contacts/
 Disallow: /api/auth/
 Disallow: /api/csp-violation-report-endpoint
 Disallow: /api/appointment-forms/
+
 
 
 
@@ -187,8 +189,9 @@ app.use('/api/tforms', tformRouter);
 app.use('/api/wforms', wformRouter);
 app.use('/api/iforms', iformRouter);
 app.use('/api/fforms', fformRouter);
-app.use('/api/appointments', appointemntRouter);
+app.use('/api/appointments', appointmentRouter);
 app.use('/api/contacts', clientContactRouter);
+app.use('/api/zoom', zoomRoutes);
 
 
 // 6. Admin Routes - Serve Admin SPA
