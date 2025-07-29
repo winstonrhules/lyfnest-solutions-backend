@@ -40,11 +40,14 @@ const appointmentSchema = new mongoose.Schema({
     enum: ['scheduled', 'completed', 'missed', 'contacted'],
     default: 'scheduled'
   },
+
   zoomMeetingId: {
     type: String,
-    required: true,
-    unique: true
+    required: false,
+    unique: true,
+    default:null,
   },
+  
   source: {
     type: String,
     enum: ['zoom', 'manual'],
