@@ -338,20 +338,37 @@ const submissionForm = asyncHandler(async (req, res) => {
     }
 
     // Email verification check
-    const emailVerification = await EmailVerification.findOne({ 
-      email,
-      status: 'verified'
-    });
-    const emailVerificationWindow = new Date(
-      Date.now() - VERIFICATION_WINDOW_MINUTES * 60 * 1000
-    );
+    // const emailVerification = await EmailVerification.findOne({ 
+    //   email,
+    //   status: 'verified'
+    // });
+    // const emailVerificationWindow = new Date(
+    //   Date.now() - VERIFICATION_WINDOW_MINUTES * 60 * 1000
+    // );
 
-    if (
-      !emailVerification ||
-      emailVerification.verifiedAt < emailVerificationWindow
-    ) {
-      return res.status(400).json({ error: 'Email verification required or expired' });
-    }
+    // if (
+    //   !emailVerification ||
+    //   emailVerification.verifiedAt < emailVerificationWindow
+    // ) {
+    //   return res.status(400).json({ error: 'Email verification required or expired' });
+    // }
+ const emailVerification = await EmailVerification.findOne({ email });
+
+if (!emailVerification) {
+  return res.status(400).json({ error: 'Email verification not found. Please verify your email.' });
+}
+
+if (emailVerification.status !== 'verified') {
+  return res.status(400).json({ error: 'Email not verified yet. Please check your email for the code.' });
+}
+
+const emailVerificationWindow = new Date(
+  Date.now() - VERIFICATION_WINDOW_MINUTES * 60 * 1000
+);
+
+if (emailVerification.verifiedAt < emailVerificationWindow) {
+  return res.status(400).json({ error: 'Email verification expired. Please verify your email again.' });
+}
 
     // Age validation
     const dobDate = new Date(formData.Dob);
