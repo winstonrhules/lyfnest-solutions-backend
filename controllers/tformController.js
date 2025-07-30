@@ -29,7 +29,7 @@ const client = twilio(
 
 // Security constants
 const VERIFICATION_EXPIRY_MINUTES = 10;
-const VERIFICATION_WINDOW_MINUTES = 30;
+const VERIFICATION_WINDOW_MINUTES = 60;
 const MAX_ATTEMPTS = 3;
 const CONTACT_WINDOW_START = 24; // hours
 const CONTACT_WINDOW_END = 48;   // hours
