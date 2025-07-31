@@ -44,7 +44,6 @@ const appointmentSchema = new mongoose.Schema({
   zoomMeetingId: {
     type: String,
     required: false,
-    default:null,
   },
   
   source: {

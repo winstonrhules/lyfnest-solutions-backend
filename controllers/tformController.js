@@ -41,40 +41,104 @@ const isE164Format = (phone) => /^\+\d{1,3}\d{6,14}$/.test(phone);
 const isValidEmail = (email) => /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$/.test(email);
 
 // Appointment scheduling logic
+// const scheduleAppointment = async () => {
+//   try {
+//     const now = new Date();
+//     const contactWindowStart = new Date(now.getTime() + CONTACT_WINDOW_START * 60 * 60 * 1000);
+//     const contactWindowEnd = new Date(now.getTime() + CONTACT_WINDOW_END * 60 * 60 * 1000);
+    
+//     const existingAppointments = await Appointment.find({
+//       assignedSlot: {
+//         $gte: contactWindowStart,
+//         $lte: contactWindowEnd
+//       }
+//     }).sort({ assignedSlot: 1 });
+    
+//     const slots = [];
+//     let currentSlot = new Date(contactWindowStart);
+    
+//     while (currentSlot < contactWindowEnd) {
+//       slots.push(new Date(currentSlot));
+//       currentSlot = new Date(currentSlot.getTime() + SLOT_DURATION * 60 * 1000);
+//     }
+    
+//     let assignedSlot = slots[0];
+    
+//     for (const slot of slots) {
+//       const slotTaken = existingAppointments.some(app => 
+//         app.assignedSlot.getTime() === slot.getTime()
+//       );
+      
+//       if (!slotTaken) {
+//         assignedSlot = slot;
+//         break;
+//       }
+//     }
+    
+//     return {
+//       contactWindowStart,
+//       contactWindowEnd,
+//       assignedSlot
+//     };
+//   } catch (error) {
+//     console.error("Scheduling Error:", error);
+    
+//     // Fallback mechanism
+//     const now = new Date();
+//     const randomOffset = Math.floor(
+//       Math.random() * 
+//       (CONTACT_WINDOW_END - CONTACT_WINDOW_START) * 60 * 60 * 1000
+//     );
+    
+//     return {
+//       contactWindowStart: new Date(now.getTime() + CONTACT_WINDOW_START * 60 * 60 * 1000),
+//       contactWindowEnd: new Date(now.getTime() + CONTACT_WINDOW_END * 60 * 60 * 1000),
+//       assignedSlot: new Date(now.getTime() + CONTACT_WINDOW_START * 60 * 60 * 1000 + randomOffset)
+//     };
+//   }
+// };
+// Corrected Code for Term Form.txt
 const scheduleAppointment = async () => {
   try {
     const now = new Date();
+
+    // Set a stable starting point for scheduling (e.g., 24 hours from now)
     const contactWindowStart = new Date(now.getTime() + CONTACT_WINDOW_START * 60 * 60 * 1000);
     const contactWindowEnd = new Date(now.getTime() + CONTACT_WINDOW_END * 60 * 60 * 1000);
-    
+
+    // --- FIX: Query for ALL future appointments to avoid conflicts ---
     const existingAppointments = await Appointment.find({
-      assignedSlot: {
-        $gte: contactWindowStart,
-        $lte: contactWindowEnd
-      }
+      assignedSlot: { $gte: now } // Check all appointments from now onwards
     }).sort({ assignedSlot: 1 });
-    
+
     const slots = [];
     let currentSlot = new Date(contactWindowStart);
-    
+
     while (currentSlot < contactWindowEnd) {
       slots.push(new Date(currentSlot));
       currentSlot = new Date(currentSlot.getTime() + SLOT_DURATION * 60 * 1000);
     }
-    
-    let assignedSlot = slots[0];
-    
+
+    let assignedSlot = null; // Initialize as null
+
+    // Find the first slot that is not taken
     for (const slot of slots) {
-      const slotTaken = existingAppointments.some(app => 
+      const slotTaken = existingAppointments.some(app =>
         app.assignedSlot.getTime() === slot.getTime()
       );
-      
       if (!slotTaken) {
-        assignedSlot = slot;
-        break;
+        assignedSlot = slot; // Assign the first available slot
+        break; // Exit the loop once a slot is found
       }
     }
-    
+
+    // If all slots are taken, fall back to the end of the window or handle error
+    if (!assignedSlot) {
+       // This will place the appointment at the very end of the contact window if no slots are free.
+       // You could also throw an error here.
+       assignedSlot = contactWindowEnd;
+    }
+
     return {
       contactWindowStart,
       contactWindowEnd,
@@ -82,14 +146,12 @@ const scheduleAppointment = async () => {
     };
   } catch (error) {
     console.error("Scheduling Error:", error);
-    
-    // Fallback mechanism
+    // The fallback mechanism can remain as-is for unexpected errors
     const now = new Date();
     const randomOffset = Math.floor(
-      Math.random() * 
+      Math.random() *
       (CONTACT_WINDOW_END - CONTACT_WINDOW_START) * 60 * 60 * 1000
     );
-    
     return {
       contactWindowStart: new Date(now.getTime() + CONTACT_WINDOW_START * 60 * 60 * 1000),
       contactWindowEnd: new Date(now.getTime() + CONTACT_WINDOW_END * 60 * 60 * 1000),
@@ -97,6 +159,7 @@ const scheduleAppointment = async () => {
     };
   }
 };
+
 
 // Phone verification initiation
 const initialVerificationChecks = asyncHandler(async (req, res) => {
