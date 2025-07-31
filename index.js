@@ -1,6 +1,8 @@
 const dotenv = require('dotenv').config();
 const express = require('express');
 const DBconnect = require('./config/DBconnect');
+
+
 const app = express();
 
 const path = require('path');
@@ -17,6 +19,7 @@ const fformRouter = require('./routes/fformRoutes');
 const appointmentRouter = require('./routes/appointmentRoutes');
 const clientContactRouter = require('./routes/clientContactRoutes');
 const zoomRoutes = require('./routes/zoomRoutes');
+
 // Middleware
 const corsConfig = require('./middlewares/corsConfig');
 const robotsBlock = require('./middlewares/robotsHeader');
@@ -238,6 +241,7 @@ app.get('*', (req, res) => {
 // 8. Error Handling
 app.use(notFound);
 app.use(errorHandler);
+
 
 // Start Server
 app.listen(PORT, () => {

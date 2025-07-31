@@ -119,39 +119,92 @@ const createZoomMeeting = asyncHandler(async (req, res) => {
 });
 
 
+// const syncZoomMeetings = async () => {
+//   try {
+//     const accessToken = await getZoomAccessToken();
+//     const response = await axios.get(
+//       'https://api.zoom.us/v2/users/me/meetings?type=upcoming&page_size=30',
+//       { headers: { Authorization: `Bearer ${accessToken}` } }
+//     );
+
+//     for (const meeting of response.data.meetings) {
+//       const exists = await ZoomMeeting.findOne({ meetingId: meeting.id });
+//       if (exists) continue;
+
+//       // Find appointment by participant email
+//       const appointment = await Appointment.findOne({
+//         'user.email': meeting.participants?.find(p => p.email)?.email
+//       }).sort({ createdAt: -1 });
+
+//       const newZoomMeeting = new ZoomMeeting({
+//         meetingId: meeting.id,
+//         joinUrl: meeting.join_url,
+//         startUrl: meeting.start_url,
+//         hostEmail: meeting.host_email,
+//         appointment: appointment?._id,
+//         createdAt: new Date(meeting.created_at)
+//       });
+
+//       await newZoomMeeting.save();
+
+//       // Update appointment if found
+//       if (appointment) {
+//         appointment.zoomMeeting = newZoomMeeting._id;
+//         await appointment.save();
+//       }
+//     }
+//   } catch (error) {
+//     console.error('Zoom Sync Error:', error.response?.data || error.message);
+//   }
+// }
+
 const syncZoomMeetings = async () => {
   try {
     const accessToken = await getZoomAccessToken();
     const response = await axios.get(
-      'https://api.zoom.us/v2/users/me/meetings?type=upcoming&page_size=30',
+      'https://api.zoom.us/v2/users/me/meetings?type=upcoming&page_size=100',
       { headers: { Authorization: `Bearer ${accessToken}` } }
     );
 
     for (const meeting of response.data.meetings) {
-      const exists = await ZoomMeeting.findOne({ meetingId: meeting.id });
-      if (exists) continue;
+      // Check if we have already synced this meeting
+      const existingZoomMeeting = await ZoomMeeting.findOne({ meetingId: meeting.id });
+      if (existingZoomMeeting) {
+        continue; // Skip if already exists
+      }
 
-      // Find appointment by participant email
-      const appointment = await Appointment.findOne({
-        'user.email': meeting.participants?.find(p => p.email)?.email
-      }).sort({ createdAt: -1 });
+      // 1. Create a new Appointment in your database from the Zoom data
+      const newAppointment = new Appointment({
+        formId: null, // This is null because the form was not submitted through your system
+        formType: 'finalForm', // Or a default/generic type
+        formData: { // Populate with data from Zoom
+          firstName: 'Zoom User',
+          lastName: meeting.topic.replace('Financial Consultation - ', ''), // Attempt to get name from topic
+          Email: 'N/A', // Email is not easily available from the meeting list
+          phoneNumber: 'N/A',
+        },
+        contactWindowStart: new Date(meeting.start_time),
+        contactWindowEnd: new Date(new Date(meeting.start_time).getTime() + meeting.duration * 60000),
+        assignedSlot: new Date(meeting.start_time),
+        status: 'scheduled',
+        source: 'zoom', // Mark this appointment as sourced from Zoom
+      });
+      await newAppointment.save();
 
+      // 2. Create the ZoomMeeting document and link it to the new appointment
       const newZoomMeeting = new ZoomMeeting({
+        appointment: newAppointment._id, // Link to the appointment created above
         meetingId: meeting.id,
         joinUrl: meeting.join_url,
         startUrl: meeting.start_url,
         hostEmail: meeting.host_email,
-        appointment: appointment?._id,
         createdAt: new Date(meeting.created_at)
       });
-
       await newZoomMeeting.save();
 
-      // Update appointment if found
-      if (appointment) {
-        appointment.zoomMeeting = newZoomMeeting._id;
-        await appointment.save();
-      }
+      // 3. Update the appointment with the zoomMeeting ID
+      newAppointment.zoomMeeting = newZoomMeeting._id;
+      await newAppointment.save();
     }
   } catch (error) {
     console.error('Zoom Sync Error:', error.response?.data || error.message);

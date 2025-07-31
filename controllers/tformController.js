@@ -10,7 +10,7 @@ const EmailVerification = require('../models/emailVerificationsModels');
 const Notification = require('../models/notificationModels');
 const User = require("../models/userModels");
 const { SESClient, SendEmailCommand } = require("@aws-sdk/client-ses");
-
+const { ZoomMeeting } = require('../models/zoomMeetingModels');
 
 // Initialize SES client
 const sesClient = new SESClient({
