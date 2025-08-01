@@ -30,7 +30,8 @@ const {
   createZoomMeeting, 
   getAllZoomMeetings, 
   manualSync,
-  syncZoomMeetings 
+  syncZoomMeetings,
+  
 } = require('../controllers/zoomController');
 
 router.post('/create-meeting', createZoomMeeting);

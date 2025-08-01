@@ -1,6 +1,12 @@
 const mongoose = require('mongoose');
 
 const appointmentSchema = new mongoose.Schema({
+ user: {
+  firstName: String,
+  lastName: String,
+  email: String,
+  phoneNumber: String
+},
   formId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Form',
@@ -9,7 +15,7 @@ const appointmentSchema = new mongoose.Schema({
   formType:{
       type: String, 
       required: true,
-      enum:['mainForm', 'termForm', 'wholeForm', 'indexedForm', 'finalForm']
+      enum:['mainForm', 'termForm', 'wholeForm', 'indexedForm', 'finalForm', 'zoomBooking']
     },
     formData:{
     type: mongoose.Schema.Types.Mixed, 
