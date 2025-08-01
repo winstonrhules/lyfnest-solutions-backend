@@ -10,7 +10,7 @@ const EmailVerification = require('../models/emailVerificationsModels');
 const Notification = require('../models/notificationModels');
 const User = require("../models/userModels");
 const { SESClient, SendEmailCommand } = require("@aws-sdk/client-ses");
-const { ZoomMeeting } = require('../models/zoomMeetingModels');
+
 
 // Initialize SES client
 const sesClient = new SESClient({
@@ -711,7 +711,169 @@ const deleteANotifs = asyncHandler(async (req, res) => {
   }   
 });
 
-const contactUserByEmail = asyncHandler(async (req, res) => {
+// const contactUserByEmail = asyncHandler(async (req, res) => {
+//   try {
+//     const { 
+//       appointmentId, 
+//       userEmail, 
+//       userName, 
+//       subject, 
+//       message,
+//       adminName,
+//       zoomLink='https://scheduler.zoom.us/nattye-a/discovery-and-guidance-call',
+//       contactMethod = 'email'
+//     } = req.body;
+
+//     // Validation
+//     if (!appointmentId || !userEmail || !userName) {
+//       return res.status(400).json({ 
+//         error: 'Missing required fields: appointmentId, userEmail, userName' 
+//       });
+//     }
+
+//     if (!isValidEmail(userEmail)) {
+//       return res.status(400).json({ error: 'Invalid email format' });
+//     }
+
+//     // Find the appointment to get more details
+//     const appointment = await Appointment.findById(appointmentId).populate('formId');
+//     if (!appointment) {
+//       return res.status(404).json({ error: 'Appointment not found' });
+//     }
+
+//     // Get form details if available
+//     let formData = null;
+//     if (appointment.formId) {
+//       formData = await Tform.findById(appointment.formId);
+//     }
+
+//      const finalZoomLink =  zoomLink;
+    
+//     // Default subject and message if not provided
+//     const emailSubject = subject || `Follow-up from LyfNest Solutions`;
+    
+//     const defaultMessage = `Hi ${userName},
+//  Thanks for submitting your request on our website! I’m following up as promised to schedule your zoom call to review your request. Please use the link below to pick a time that works best for you:${finalZoomLink}
+
+// ${formData ? `Based on your submitted information, we understand you're interested in:
+// ${formData.coverageAmount} : 'coverage Amount'}
+
+// Your Preferred Term: ${formData.preferredTerm} ` : ''}
+
+// Best regards,
+// ${adminName || 'LyfNest Solutions Team'}
+// Email: ${process.env.SES_SENDER_EMAIL}`;
+
+//     const emailMessage = message || defaultMessage;
+
+//     // Prepare SES email parameters
+//     const params = {
+//       Destination: { ToAddresses: [userEmail] },
+//       Message: {
+//         Body: {
+//           Html: {
+//             Charset: "UTF-8",
+//             Data: `
+//                               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+//                      <div style="background: #a4dcd7; color: white; padding: 30px; border-radius: 10px 10px 0 0 display: flex; align-items: center; justify-content: center;">
+//                   <img src="https://res.cloudinary.com/dma2ht84k/image/upload/v1753279441/lyfnest-logo_byfywb.png" alt="LyfNest Solutions Logo" style="width: 50px; height: 50px; margin-right: 20px;">
+                       
+//                      </div>
+              
+//               <div style="background: #ffffff; padding: 30px; border: 1px solid #e0e0e0; border-top: none;">
+//                 <div style="white-space: pre-line; line-height: 1.6; color: #333;">
+//                   ${emailMessage.replace(/\n/g, '<br>')}
+//                 </div>
+                
+//                 <div style="text-align: center; margin: 30px 0;">
+//                   <a href="${finalZoomLink}" 
+//                      style="background: #4caf50; 
+//                             color: white; 
+//                             padding: 12px 24px; 
+//                             text-decoration: none; 
+//                             border-radius: 4px;
+//                             font-weight: bold;
+//                             display: inline-block;">
+//                     Schedule Meeting
+//                   </a>
+//                 </div>
+                
+//                 ${formData ? `
+//                 <div style="background: #f8f9fa; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #4caf50;">
+//                   <h3 style="color: #2e7d32; margin-top: 0;">Your Inquiry Details:</h3>
+//                   <ul style="color: #555; margin: 10px 0;">
+//                     <li><strong>Preferred Term:</strong>  ${formData.preferredTerm || 'Not specified'}</li>
+//                     <li><strong>Coverage Amount:</strong>  ${formData.coverageAmount || 'Not specified'}</li>
+//                     <li><strong>Preferred Contact:</strong> ${formData.contactMethod || 'Email'}</li>
+//                     ${formData.phoneNumber ? `<li><strong>Phone:</strong> ${formData.phoneNumber}</li>` : ''}
+//                   </ul>
+//                 </div>
+//                 ` : ''}
+//               </div>
+              
+//               <div style="background: #f5f5f5; padding: 20px; text-align: center; border-radius: 0 0 10px 10px;">
+//                 <p style="margin: 0; color: #666; font-size: 14px;">
+//                   <strong>LyfNest Solutions</strong><br>
+//                   Email: ${process.env.SES_SENDER_EMAIL}<br>
+//                 </p>
+//               </div>
+//             </div>
+//             `
+//           },
+//           Text: {
+//             Charset: "UTF-8",
+//             Data: `${emailMessage}\n\nSchedule your meeting: ${finalZoomLink}`
+//           }
+//         },
+//         Subject: {
+//           Charset: "UTF-8",
+//           Data: emailSubject
+//         }
+//       },
+//       Source: process.env.SES_SENDER_EMAIL
+//     };
+
+//     // Send the email using AWS SES
+//     await sesClient.send(new SendEmailCommand(params));
+
+//     // Update appointment status
+//      try {
+//   appointment.status = 'contacted';
+//   appointment.lastContactDate = new Date();
+//   appointment.contactMethod = contactMethod;
+//   appointment.contactedBy = adminName || 'Admin';
+
+//   await appointment.save();
+// } catch (err) {
+//   console.error("Error saving appointment update:", err);
+//   return res.status(500).json({ error: 'Email sent, but failed to update appointment.' });
+// }
+
+
+//     res.status(200).json({
+//       message: 'Email sent successfully',
+//       appointmentId,
+//       contactMethod: 'email',
+//       sentAt: new Date(),
+//       recipient: userEmail,
+//       zoomLink: finalZoomLink,
+//       emailSent:true
+//     });
+
+//   } catch (error) {
+//     console.error("Contact Email Error:", {
+//       message: error.message,
+//       stack: error.stack,
+//       body: req.body
+//     });
+
+//     res.status(500).json({ 
+//       message: 'Failed to send contact email' 
+//     });
+//   }
+// });
+
+const contactUserByEmail = async (req, res) => {
   try {
     const { 
       appointmentId, 
@@ -720,7 +882,6 @@ const contactUserByEmail = asyncHandler(async (req, res) => {
       subject, 
       message,
       adminName,
-      zoomLink='https://scheduler.zoom.us/nattye-a/discovery-and-guidance-call',
       contactMethod = 'email'
     } = req.body;
 
@@ -735,30 +896,42 @@ const contactUserByEmail = asyncHandler(async (req, res) => {
       return res.status(400).json({ error: 'Invalid email format' });
     }
 
-    // Find the appointment to get more details
+    // Find the appointment
     const appointment = await Appointment.findById(appointmentId).populate('formId');
     if (!appointment) {
       return res.status(404).json({ error: 'Appointment not found' });
     }
+
+    // Create Zoom meeting first
+    const zoomResponse = await axiosInstance.post('/zoom/create-meeting', {
+      appointmentId: appointmentId,
+      startTime: appointment.assignedSlot
+    });
+
+    const schedulerLink = `https://scheduler.zoom.us/nattye-a/discovery-and-guidance-call`;
 
     // Get form details if available
     let formData = null;
     if (appointment.formId) {
       formData = await Tform.findById(appointment.formId);
     }
-
-     const finalZoomLink =  zoomLink;
     
-    // Default subject and message if not provided
-    const emailSubject = subject || `Follow-up from LyfNest Solutions`;
+    // Default subject and message
+    const emailSubject = subject || `Schedule Your Financial Consultation - LyfNest Solutions`;
     
     const defaultMessage = `Hi ${userName},
- Thanks for submitting your request on our website! I’m following up as promised to schedule your zoom call to review your request. Please use the link below to pick a time that works best for you:${finalZoomLink}
 
-${formData ? `Based on your submitted information, we understand you're interested in:
-${formData.coverageAmount} : 'coverage Amount'}
+Thank you for submitting your request! I'm following up to schedule your financial consultation.
 
-Your Preferred Term: ${formData.preferredTerm} ` : ''}
+Please use the link below to pick a time that works best for you:
+${schedulerLink}
+
+${formData ? `Based on your submitted information:
+• Coverage Amount: ${formData.coverageAmount}
+• Preferred Term: ${formData.preferredTerm}
+` : ''}
+
+Once you schedule your preferred time, I'll receive a notification and we'll be all set for our meeting.
 
 Best regards,
 ${adminName || 'LyfNest Solutions Team'}
@@ -766,7 +939,7 @@ Email: ${process.env.SES_SENDER_EMAIL}`;
 
     const emailMessage = message || defaultMessage;
 
-    // Prepare SES email parameters
+    // Send email with scheduler link
     const params = {
       Destination: { ToAddresses: [userEmail] },
       Message: {
@@ -774,55 +947,61 @@ Email: ${process.env.SES_SENDER_EMAIL}`;
           Html: {
             Charset: "UTF-8",
             Data: `
-                              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-                     <div style="background: #a4dcd7; color: white; padding: 30px; border-radius: 10px 10px 0 0 display: flex; align-items: center; justify-content: center;">
-                  <img src="https://res.cloudinary.com/dma2ht84k/image/upload/v1753279441/lyfnest-logo_byfywb.png" alt="LyfNest Solutions Logo" style="width: 50px; height: 50px; margin-right: 20px;">
-                       
-                     </div>
+              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+                <div style="background: #a4dcd7; color: white; padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+                  <img src="https://res.cloudinary.com/dma2ht84k/image/upload/v1753279441/lyfnest-logo_byfywb.png" alt="LyfNest Solutions Logo" style="width: 50px; height: 50px; margin-bottom: 10px;">
+                  <h2 style="margin: 0;">Schedule Your Consultation</h2>
+                </div>
               
-              <div style="background: #ffffff; padding: 30px; border: 1px solid #e0e0e0; border-top: none;">
-                <div style="white-space: pre-line; line-height: 1.6; color: #333;">
-                  ${emailMessage.replace(/\n/g, '<br>')}
+                <div style="background: #ffffff; padding: 30px; border: 1px solid #e0e0e0; border-top: none;">
+                  <div style="white-space: pre-line; line-height: 1.6; color: #333;">
+                    ${emailMessage.replace(/\n/g, '<br>')}
+                  </div>
+                  
+                  <div style="text-align: center; margin: 30px 0;">
+                    <a href="${schedulerLink}" 
+                       style="background: #4caf50; 
+                              color: white; 
+                              padding: 15px 30px; 
+                              text-decoration: none; 
+                              border-radius: 5px;
+                              font-weight: bold;
+                              font-size: 16px;
+                              display: inline-block;">
+                      📅 Schedule My Meeting
+                    </a>
+                  </div>
+                  
+                  ${formData ? `
+                  <div style="background: #f8f9fa; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #4caf50;">
+                    <h3 style="color: #2e7d32; margin-top: 0;">Your Inquiry Details:</h3>
+                    <ul style="color: #555; margin: 10px 0;">
+                      <li><strong>Coverage Amount:</strong> ${formData.coverageAmount || 'Not specified'}</li>
+                      <li><strong>Preferred Term:</strong> ${formData.preferredTerm || 'Not specified'}</li>
+                      ${formData.phoneNumber ? `<li><strong>Phone:</strong> ${formData.phoneNumber}</li>` : ''}
+                    </ul>
+                  </div>
+                  ` : ''}
+                  
+                  <div style="background: #e3f2fd; padding: 15px; border-radius: 5px; margin-top: 20px;">
+                    <p style="margin: 0; color: #1976d2; font-size: 14px;">
+                      <strong>📝 Note:</strong> After you schedule, I'll receive an automatic notification with your chosen time and will prepare for our meeting accordingly.
+                    </p>
+                  </div>
                 </div>
                 
-                <div style="text-align: center; margin: 30px 0;">
-                  <a href="${finalZoomLink}" 
-                     style="background: #4caf50; 
-                            color: white; 
-                            padding: 12px 24px; 
-                            text-decoration: none; 
-                            border-radius: 4px;
-                            font-weight: bold;
-                            display: inline-block;">
-                    Schedule Meeting
-                  </a>
+                <div style="background: #f5f5f5; padding: 20px; text-align: center; border-radius: 0 0 10px 10px;">
+                  <p style="margin: 0; color: #666; font-size: 14px;">
+                    <strong>LyfNest Solutions</strong><br>
+                    Email: ${process.env.SES_SENDER_EMAIL}
+                  </p>
                 </div>
-                
-                ${formData ? `
-                <div style="background: #f8f9fa; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #4caf50;">
-                  <h3 style="color: #2e7d32; margin-top: 0;">Your Inquiry Details:</h3>
-                  <ul style="color: #555; margin: 10px 0;">
-                    <li><strong>Preferred Term:</strong>  ${formData.preferredTerm || 'Not specified'}</li>
-                    <li><strong>Coverage Amount:</strong>  ${formData.coverageAmount || 'Not specified'}</li>
-                    <li><strong>Preferred Contact:</strong> ${formData.contactMethod || 'Email'}</li>
-                    ${formData.phoneNumber ? `<li><strong>Phone:</strong> ${formData.phoneNumber}</li>` : ''}
-                  </ul>
-                </div>
-                ` : ''}
               </div>
-              
-              <div style="background: #f5f5f5; padding: 20px; text-align: center; border-radius: 0 0 10px 10px;">
-                <p style="margin: 0; color: #666; font-size: 14px;">
-                  <strong>LyfNest Solutions</strong><br>
-                  Email: ${process.env.SES_SENDER_EMAIL}<br>
-                </p>
-              </div>
-            </div>
             `
           },
           Text: {
             Charset: "UTF-8",
-            Data: `${emailMessage}\n\nSchedule your meeting: ${finalZoomLink}`
+            Data: `${emailMessage}\n\nSchedule your meeting: ${schedulerLink}`
           }
         },
         Subject: {
@@ -833,48 +1012,36 @@ Email: ${process.env.SES_SENDER_EMAIL}`;
       Source: process.env.SES_SENDER_EMAIL
     };
 
-    // Send the email using AWS SES
+    // Send the email
     await sesClient.send(new SendEmailCommand(params));
 
     // Update appointment status
-     try {
-  appointment.status = 'contacted';
-  appointment.lastContactDate = new Date();
-  appointment.contactMethod = contactMethod;
-  appointment.contactedBy = adminName || 'Admin';
-
-  await appointment.save();
-} catch (err) {
-  console.error("Error saving appointment update:", err);
-  return res.status(500).json({ error: 'Email sent, but failed to update appointment.' });
-}
-
+    appointment.status = 'contacted';
+    appointment.lastContactDate = new Date();
+    appointment.contactMethod = contactMethod;
+    appointment.contactedBy = adminName || 'Admin';
+    appointment.zoomMeeting = zoomResponse.data.meetingInfo.meetingId;
+    await appointment.save();
 
     res.status(200).json({
-      message: 'Email sent successfully',
+      message: 'Email sent successfully with scheduler link',
       appointmentId,
       contactMethod: 'email',
       sentAt: new Date(),
       recipient: userEmail,
-      zoomLink: finalZoomLink,
-      emailSent:true
+      schedulerLink: schedulerLink,
+      emailSent: true,
+      zoomMeetingCreated: true
     });
 
   } catch (error) {
-    console.error("Contact Email Error:", {
-      message: error.message,
-      stack: error.stack,
-      body: req.body
-    });
-
+    console.error("Contact Email Error:", error);
     res.status(500).json({ 
-      message: 'Failed to send contact email' 
+      message: 'Failed to send contact email',
+      error: error.message 
     });
   }
-});
-
-
-
+}
 
 module.exports = {
   initialVerificationChecks, 
@@ -888,5 +1055,5 @@ module.exports = {
   createNotifs, 
   deleteNotifs, 
   deleteANotifs,
-  contactUserByEmail
+  contactUserByEmail,
 };
