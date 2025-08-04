@@ -1,7 +1,7 @@
 const dotenv = require('dotenv').config();
 const express = require('express');
 const DBconnect = require('./config/DBconnect');
-
+const http = require('http');
 
 const app = express();
 
@@ -20,6 +20,7 @@ const appointmentRouter = require('./routes/appointmentRoutes');
 const clientContactRouter = require('./routes/clientContactRoutes');
 const zoomRoutes = require('./routes/zoomRoutes');
 
+const Appointment = require('./models/appointmentModels'); // Import the Appointment model
 // Middleware
 const corsConfig = require('./middlewares/corsConfig');
 const robotsBlock = require('./middlewares/robotsHeader');
@@ -28,6 +29,18 @@ const { notFound, errorHandler } = require('./middlewares/errorHandler');
 // Connect to database
 DBconnect();
 
+
+const socketIo = require('socket.io');
+const server = http.createServer(app);
+const io = socketIo(server, {
+  cors: {
+    origin:[process.env.CORS_ORIGIN_FRONT,  process.env.CORS_ORIGIN_LFRONT, process.env.CORS_ORIGIN_ADMIN,  process.env.CORS_ORIGIN_LADMIN],
+    methods: ["GET", "POST"],
+    credentials:true
+  }
+});
+
+app.locals.io = io; // Make io available in app locals
 const PORT = process.env.PORT || 4000;
 
 // 1. Security Headers
@@ -238,12 +251,69 @@ app.get('*', (req, res) => {
   res.sendFile(path.join(publicDistPath, 'index.html'));
 });
 
+
+// Socket.IO connection handler
+io.on('connection', (socket) => {
+  console.log('Client connected');
+
+  socket.on('disconnect', () => {
+    console.log('Client disconnected');
+  });
+});
+
 // 8. Error Handling
 app.use(notFound);
 app.use(errorHandler);
 
 
 // Start Server
-app.listen(PORT, () => {
+server.listen(PORT, () => {
   console.log(`Server running at PORT ${PORT}`);
+});
+
+
+
+
+
+
+
+// Add to your appointment creation endpoint
+app.post('/create-appointment', async (req, res) => {
+  try {
+    const appointment = await Appointment.create(req.body);
+    
+    // Broadcast to all connected clients
+    io.emit('newAppointment', appointment);
+    
+    res.status(201).json(appointment);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Add to update endpoint
+app.put('/appointments/:id', async (req, res) => {
+  try {
+    const appointment = await Appointment.findByIdAndUpdate(
+      req.params.id, 
+      req.body, 
+      { new: true }
+    );
+    
+    io.emit('updateAppointment', appointment);
+    res.json(appointment);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// Add to delete endpoint
+app.delete('/appointments/:id', async (req, res) => {
+  try {
+    await Appointment.findByIdAndDelete(req.params.id);
+    io.emit('deleteAppointment', req.params.id);
+    res.json({ message: 'Appointment deleted' });
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });

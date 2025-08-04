@@ -5,3 +5,4 @@ const corsOption = {
 }
 
 module.exports = cors(corsOption)
+

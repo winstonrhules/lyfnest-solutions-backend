@@ -7,7 +7,7 @@ const DBconnect = ()=>{
         syncJob.start();
     }
     catch(error){
-        console.log("Databse Failed to connect")
+        console.log("Database Failed to connect")
     }
 
 }
