@@ -1383,7 +1383,7 @@ const submissionForm = asyncHandler(async (req, res) => {
       contactWindowEnd: appointmentDetails.contactWindowEnd,
       assignedSlot: appointmentDetails.assignedSlot,
       initialSlot: appointmentDetails.assignedSlot,
-      policyType: 'term', // Track initial slot
+      policyType: 'Term', // Track initial slot
     });
 
     const savedAppointment = await newAppointment.save();
