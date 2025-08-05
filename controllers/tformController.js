@@ -1576,7 +1576,7 @@ const deleteForm = asyncHandler(async (req, res) => {
 })
 
 // CONTACT USER VIA EMAIL WITH SCHEDULER LINK
-const contactUserByEmail = asyncHandler(async (req, res) => {
+const contactUserByEmail = async (req, res) => {
   try {
     const { 
       appointmentId, 
@@ -1600,17 +1600,22 @@ const contactUserByEmail = asyncHandler(async (req, res) => {
     }
 
     // Find the appointment
-    const appointment = await Appointment.findById(appointmentId);
+    const appointment = await Appointment.findById(appointmentId).populate('formId');
     if (!appointment) {
       return res.status(404).json({ error: 'Appointment not found' });
     }
 
-    // Use static scheduler link
-    const schedulerLink = `https://scheduler.zoom.us/nattye-a/discovery-and-guidance-call`;
+    // Create Zoom meeting first
+    const zoomResponse = await axiosInstance.post('/zoom/create-meeting', {
+      appointmentId: appointmentId,
+      startTime: appointment.assignedSlot
+    });
 
-    // Get form details only for termForm
+    const schedulerLink = process.env.ZOOM_URL;
+
+    // Get form details if available
     let formData = null;
-    if (appointment.formType === 'termForm' && appointment.formId) {
+    if (appointment.formId) {
       formData = await Tform.findById(appointment.formId);
     }
     
@@ -1625,8 +1630,8 @@ Please use the link below to pick a time that works best for you:
 ${schedulerLink}
 
 ${formData ? `Based on your submitted information:
-${formData.coverageAmount ? `• Coverage Amount: ${formData.coverageAmount}\n` : ''}
-${formData.preferredTerm ? `• Preferred Term: ${formData.preferredTerm}\n` : ''}
+• Coverage Amount: ${formData.coverageAmount}
+• Preferred Term: ${formData.preferredTerm}
 ` : ''}
 
 Once you schedule your preferred time, I'll receive a notification and we'll be all set for our meeting.
@@ -1674,8 +1679,8 @@ Email: ${process.env.SES_SENDER_EMAIL}`;
                   <div style="background: #f8f9fa; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #4caf50;">
                     <h3 style="color: #2e7d32; margin-top: 0;">Your Inquiry Details:</h3>
                     <ul style="color: #555; margin: 10px 0;">
-                      ${formData.coverageAmount ? `<li><strong>Coverage Amount:</strong> ${formData.coverageAmount}</li>` : ''}
-                      ${formData.preferredTerm ? `<li><strong>Preferred Term:</strong> ${formData.preferredTerm}</li>` : ''}
+                      <li><strong>Coverage Amount:</strong> ${formData.coverageAmount || 'Not specified'}</li>
+                      <li><strong>Preferred Term:</strong> ${formData.preferredTerm || 'Not specified'}</li>
                       ${formData.phoneNumber ? `<li><strong>Phone:</strong> ${formData.phoneNumber}</li>` : ''}
                     </ul>
                   </div>
@@ -1718,6 +1723,7 @@ Email: ${process.env.SES_SENDER_EMAIL}`;
     appointment.lastContactDate = new Date();
     appointment.contactMethod = contactMethod;
     appointment.contactedBy = adminName || 'Admin';
+    appointment.zoomMeeting = zoomResponse.data.meetingInfo.meetingId;
     await appointment.save();
 
     res.status(200).json({
@@ -1727,7 +1733,8 @@ Email: ${process.env.SES_SENDER_EMAIL}`;
       sentAt: new Date(),
       recipient: userEmail,
       schedulerLink: schedulerLink,
-      emailSent: true
+      emailSent: true,
+      zoomMeetingCreated: true
     });
 
   } catch (error) {
@@ -1737,7 +1744,170 @@ Email: ${process.env.SES_SENDER_EMAIL}`;
       error: error.message 
     });
   }
-});
+}
+
+// const contactUserByEmail = asyncHandler(async (req, res) => {
+//   try {
+//     const { 
+//       appointmentId, 
+//       userEmail, 
+//       userName, 
+//       subject, 
+//       message,
+//       adminName,
+//       contactMethod = 'email'
+//     } = req.body;
+
+//     // Validation
+//     if (!appointmentId || !userEmail || !userName) {
+//       return res.status(400).json({ 
+//         error: 'Missing required fields: appointmentId, userEmail, userName' 
+//       });
+//     }
+
+//     if (!isValidEmail(userEmail)) {
+//       return res.status(400).json({ error: 'Invalid email format' });
+//     }
+
+//     // Find the appointment
+//     const appointment = await Appointment.findById(appointmentId);
+//     if (!appointment) {
+//       return res.status(404).json({ error: 'Appointment not found' });
+//     }
+
+//     // Use static scheduler link
+//     const schedulerLink = `https://scheduler.zoom.us/nattye-a/discovery-and-guidance-call`;
+
+//     // Get form details only for termForm
+//     let formData = null;
+//     if (appointment.formType === 'termForm' && appointment.formId) {
+//       formData = await Tform.findById(appointment.formId);
+//     }
+    
+//     // Default subject and message
+//     const emailSubject = subject || `Schedule Your Financial Consultation - LyfNest Solutions`;
+    
+//     const defaultMessage = `Hi ${userName},
+
+// Thank you for submitting your request! I'm following up to schedule your financial consultation.
+
+// Please use the link below to pick a time that works best for you:
+// ${schedulerLink}
+
+// ${formData ? `Based on your submitted information:
+// ${formData.coverageAmount ? `• Coverage Amount: ${formData.coverageAmount}\n` : ''}
+// ${formData.preferredTerm ? `• Preferred Term: ${formData.preferredTerm}\n` : ''}
+// ` : ''}
+
+// Once you schedule your preferred time, I'll receive a notification and we'll be all set for our meeting.
+
+// Best regards,
+// ${adminName || 'LyfNest Solutions Team'}
+// Email: ${process.env.SES_SENDER_EMAIL}`;
+
+//     const emailMessage = message || defaultMessage;
+
+//     // Send email with scheduler link
+//     const params = {
+//       Destination: { ToAddresses: [userEmail] },
+//       Message: {
+//         Body: {
+//           Html: {
+//             Charset: "UTF-8",
+//             Data: `
+//               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+//                 <div style="background: #a4dcd7; color: white; padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+//                   <img src="https://res.cloudinary.com/dma2ht84k/image/upload/v1753279441/lyfnest-logo_byfywb.png" alt="LyfNest Solutions Logo" style="width: 50px; height: 50px; margin-bottom: 10px;">
+//                   <h2 style="margin: 0;">Schedule Your Consultation</h2>
+//                 </div>
+              
+//                 <div style="background: #ffffff; padding: 30px; border: 1px solid #e0e0e0; border-top: none;">
+//                   <div style="white-space: pre-line; line-height: 1.6; color: #333;">
+//                     ${emailMessage.replace(/\n/g, '<br>')}
+//                   </div>
+                  
+//                   <div style="text-align: center; margin: 30px 0;">
+//                     <a href="${schedulerLink}" 
+//                        style="background: #4caf50; 
+//                               color: white; 
+//                               padding: 15px 30px; 
+//                               text-decoration: none; 
+//                               border-radius: 5px;
+//                               font-weight: bold;
+//                               font-size: 16px;
+//                               display: inline-block;">
+//                       📅 Schedule My Meeting
+//                     </a>
+//                   </div>
+                  
+//                   ${formData ? `
+//                   <div style="background: #f8f9fa; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #4caf50;">
+//                     <h3 style="color: #2e7d32; margin-top: 0;">Your Inquiry Details:</h3>
+//                     <ul style="color: #555; margin: 10px 0;">
+//                       ${formData.coverageAmount ? `<li><strong>Coverage Amount:</strong> ${formData.coverageAmount}</li>` : ''}
+//                       ${formData.preferredTerm ? `<li><strong>Preferred Term:</strong> ${formData.preferredTerm}</li>` : ''}
+//                       ${formData.phoneNumber ? `<li><strong>Phone:</strong> ${formData.phoneNumber}</li>` : ''}
+//                     </ul>
+//                   </div>
+//                   ` : ''}
+                  
+//                   <div style="background: #e3f2fd; padding: 15px; border-radius: 5px; margin-top: 20px;">
+//                     <p style="margin: 0; color: #1976d2; font-size: 14px;">
+//                       <strong>📝 Note:</strong> After you schedule, I'll receive an automatic notification with your chosen time and will prepare for our meeting accordingly.
+//                     </p>
+//                   </div>
+//                 </div>
+                
+//                 <div style="background: #f5f5f5; padding: 20px; text-align: center; border-radius: 0 0 10px 10px;">
+//                   <p style="margin: 0; color: #666; font-size: 14px;">
+//                     <strong>LyfNest Solutions</strong><br>
+//                     Email: ${process.env.SES_SENDER_EMAIL}
+//                   </p>
+//                 </div>
+//               </div>
+//             `
+//           },
+//           Text: {
+//             Charset: "UTF-8",
+//             Data: `${emailMessage}\n\nSchedule your meeting: ${schedulerLink}`
+//           }
+//         },
+//         Subject: {
+//           Charset: "UTF-8",
+//           Data: emailSubject
+//         }
+//       },
+//       Source: process.env.SES_SENDER_EMAIL
+//     };
+
+//     // Send the email
+//     await sesClient.send(new SendEmailCommand(params));
+
+//     // Update appointment status
+//     appointment.status = 'contacted';
+//     appointment.lastContactDate = new Date();
+//     appointment.contactMethod = contactMethod;
+//     appointment.contactedBy = adminName || 'Admin';
+//     await appointment.save();
+
+//     res.status(200).json({
+//       message: 'Email sent successfully with scheduler link',
+//       appointmentId,
+//       contactMethod: 'email',
+//       sentAt: new Date(),
+//       recipient: userEmail,
+//       schedulerLink: schedulerLink,
+//       emailSent: true
+//     });
+
+//   } catch (error) {
+//     console.error("Contact Email Error:", error);
+//     res.status(500).json({ 
+//       message: 'Failed to send contact email',
+//       error: error.message 
+//     });
+//   }
+// });
 
 // Notification handlers
 const getAllNotifs = asyncHandler(async (req, res) => {

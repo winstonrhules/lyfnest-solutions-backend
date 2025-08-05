@@ -18,7 +18,7 @@ const zoomMeetingSchema = new mongoose.Schema({
 
   startUrl: {
     type: String,
-    required: false,
+    required: true,
   },
   hostEmail: String,
   schedulerUrl:String,

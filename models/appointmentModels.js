@@ -136,7 +136,20 @@ const appointmentSchema = new mongoose.Schema({
   lastUpdated: {
     type: Date,
     default: Date.now
-  }
+  },
+
+  policyType: {
+  type: String,
+  enum: ['IUL', 'WL', 'Term', 'Final Expense'],
+  required: true
+},
+
+appointmentType: {
+  type: String,
+  enum: ['consultation', 'policy_review', 'follow_up'],
+  default: 'consultation'
+}
+
 }, { timestamps: true });
 
 module.exports = mongoose.model('Appointment', appointmentSchema);
