@@ -1719,7 +1719,9 @@ Email: ${process.env.SES_SENDER_EMAIL}`;
     appointment.lastContactDate = new Date();
     appointment.contactMethod = contactMethod;
     appointment.contactedBy = adminName || 'Admin';
+     appointment.zoomMeeting = zoomResponse.data.meetingInfo.meetingId;
     await appointment.save();
+            
 
     res.status(200).json({
       message: 'Email sent successfully with scheduler link',
@@ -1728,7 +1730,8 @@ Email: ${process.env.SES_SENDER_EMAIL}`;
       sentAt: new Date(),
       recipient: userEmail,
       schedulerLink: schedulerLink,
-      emailSent: true
+      emailSent: true,
+      zoomMeetingCreated: true
     });
 
   } catch (error) {
