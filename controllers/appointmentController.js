@@ -325,12 +325,12 @@ const createAppointment = asyncHandler(async (req, res) => {
   const appointment = await Appointment.create(req.body);
 
   // Emit new appointment to all connected clients
-  req.app.locals.io.emit('newAppointment', appointment);
+  req.io.to('appointments').emit('newAppointment', appointment);
 
   res.status(201).json(appointment);
 });
 
-// 🟢 GET ALL
+// 🟢 GET ALL    
 const getAppointments = asyncHandler(async (req, res) => {
   const appointments = await Appointment.find().sort({ assignedSlot: 1 }).lean();
 
@@ -365,6 +365,7 @@ const updateAppointmentStatus = asyncHandler(async (req, res) => {
 
   if (status === 'contacted') {
     appointment.status = 'contacted';
+    appointment.lastContactDate = new Date();
   } else if (zoomMeetingId) {
     appointment.status = 'booked';
     appointment.zoomMeetingId = zoomMeetingId;
@@ -375,8 +376,8 @@ const updateAppointmentStatus = asyncHandler(async (req, res) => {
   await appointment.save();
 
   // Emit update
-  req.app.locals.io.emit('updateAppointment', appointment);
-
+  // req.app.locals.io.emit('updateAppointment', appointment);
+req.io.to('appointments').emit('updateAppointment', appointment);
   res.status(200).json(appointment);
 });
 
@@ -437,7 +438,7 @@ const rescheduleAppointment = asyncHandler(async (req, res) => {
   });
 
   // Emit reschedule
-  req.app.locals.io.emit('rescheduleAppointment', appointment);
+  req.io.to('appointments').emit('rescheduleAppointment', appointment);
 
   res.status(200).json(appointment);
 });
@@ -451,8 +452,7 @@ const deleteAppointment = asyncHandler(async (req, res) => {
   }
 
   // Emit delete
-  req.app.locals.io.emit('deleteAppointment', req.params.id);
-
+  req.io.to('appointments').emit('deleteAppointment', req.params.id);
   res.status(200).json({ success: true, message: 'Appointment deleted successfully' });
 });
 

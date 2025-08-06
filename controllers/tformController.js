@@ -1607,7 +1607,7 @@ const contactUserByEmail = asyncHandler(async (req, res) => {
     }
 
     // Use static scheduler link
-    const schedulerLink = `https://scheduler.zoom.us/nattye-a/discovery-and-guidance-call`;
+    const schedulerLink = process.env.ZOOM_URL;
 
     // Get form details only for termForm
     let formData = null;

@@ -30,17 +30,43 @@ const { notFound, errorHandler } = require('./middlewares/errorHandler');
 DBconnect();
 
 
+// const socketIo = require('socket.io');
+// const server = http.createServer(app);
+// const io = socketIo(server, {
+//   cors: {
+//     origin:[process.env.CORS_ORIGIN_FRONT,  process.env.CORS_ORIGIN_LFRONT, process.env.CORS_ORIGIN_ADMIN,  process.env.CORS_ORIGIN_LADMIN],
+//     methods: ["GET", "POST"],
+//     credentials:true
+//   }
+// });
+
+// app.locals.io = io; // Make io available in app locals
+
 const socketIo = require('socket.io');
 const server = http.createServer(app);
+
+// Enhanced CORS configuration
 const io = socketIo(server, {
   cors: {
-    origin:[process.env.CORS_ORIGIN_FRONT,  process.env.CORS_ORIGIN_LFRONT, process.env.CORS_ORIGIN_ADMIN,  process.env.CORS_ORIGIN_LADMIN],
-    methods: ["GET", "POST"],
-    credentials:true
-  }
+    origin: [
+      process.env.CORS_ORIGIN_FRONT,  
+      process.env.CORS_ORIGIN_LFRONT, 
+      process.env.CORS_ORIGIN_ADMIN,  
+      process.env.CORS_ORIGIN_LADMIN
+    ],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: true
+  },
+  transports: ['websocket', 'polling'] // Add websocket transport
 });
 
-app.locals.io = io; // Make io available in app locals
+// Add CORS middleware for preflight requests
+app.options('*', corsConfig);
+
+// Attach io to app locals
+app.locals.io = io;
+
 const PORT = process.env.PORT || 4000;
 
 // 1. Security Headers
@@ -254,11 +280,23 @@ app.get('*', (req, res) => {
 
 // Socket.IO connection handler
 io.on('connection', (socket) => {
-  console.log('Client connected');
+  console.log('Client connected:', socket.id);
+
+  // Handle appointment events
+  socket.on('joinAppointments', () => {
+    console.log(`Client ${socket.id} joined appointments room`);
+    socket.join('appointments');
+  });
 
   socket.on('disconnect', () => {
-    console.log('Client disconnected');
+    console.log('Client disconnected:', socket.id);
   });
+});
+
+// Add this middleware to emit events from controllers
+app.use((req, res, next) => {
+  req.io = io;
+  next();
 });
 
 // 8. Error Handling
@@ -269,51 +307,10 @@ app.use(errorHandler);
 // Start Server
 server.listen(PORT, () => {
   console.log(`Server running at PORT ${PORT}`);
+  console.log(`WebSocket server running at ws://localhost:${PORT}`);
 });
 
 
 
 
 
-
-
-// Add to your appointment creation endpoint
-app.post('/create-appointment', async (req, res) => {
-  try {
-    const appointment = await Appointment.create(req.body);
-    
-    // Broadcast to all connected clients
-    io.emit('newAppointment', appointment);
-    
-    res.status(201).json(appointment);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Add to update endpoint
-app.put('/appointments/:id', async (req, res) => {
-  try {
-    const appointment = await Appointment.findByIdAndUpdate(
-      req.params.id, 
-      req.body, 
-      { new: true }
-    );
-    
-    io.emit('updateAppointment', appointment);
-    res.json(appointment);
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// Add to delete endpoint
-app.delete('/appointments/:id', async (req, res) => {
-  try {
-    await Appointment.findByIdAndDelete(req.params.id);
-    io.emit('deleteAppointment', req.params.id);
-    res.json({ message: 'Appointment deleted' });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  }
-});
