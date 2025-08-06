@@ -1,6 +1,4 @@
 
-
-
 // const getAppointments = asyncHandler(async (req, res) => {
 //   try {
 //     const appointments = await Appointment.find().sort({ assignedSlot: 1 });
@@ -371,6 +369,7 @@ const updateAppointmentStatus = asyncHandler(async (req, res) => {
     appointment.zoomMeetingId = zoomMeetingId;
   } else if (status === 'completed') {
     appointment.status = 'completed';
+    appointment.lastContactDate = new Date();
   }
 
   await appointment.save();

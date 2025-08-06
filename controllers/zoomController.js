@@ -167,7 +167,7 @@ const syncZoomMeetings = async () => {
               assignedSlot: meetingStartTime,
               contactWindowStart: meetingStartTime,
               contactWindowEnd: meetingEndTime,
-              status: 'scheduled',
+              status: 'booked',
               lastUpdated: new Date()
             };
 
@@ -185,7 +185,7 @@ const syncZoomMeetings = async () => {
 
             // Create notification for admin
             await Notification.create({
-              message: `Meeting rescheduled: ${appointment.user?.firstName || 'Client'} - ${meetingStartTime.toLocaleDateString()} at ${meetingStartTime.toLocaleTimeString()}`,
+              message: `Meeting booked: ${matchedAppointment.user?.firstName || 'Client'} - ${meetingStartTime.toLocaleDateString()} at ${meetingStartTime.toLocaleTimeString()}`,
               formType: appointment.formType || 'meeting_update',
               read: false,
               appointmentId: appointment._id
