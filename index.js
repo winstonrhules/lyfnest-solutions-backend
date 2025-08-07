@@ -65,7 +65,7 @@ const io = socketIo(server, {
 app.options('*', corsConfig);
 
 // Attach io to app locals
-app.locals.io = io;
+global.io = io;
 
 const PORT = process.env.PORT || 4000;
 
