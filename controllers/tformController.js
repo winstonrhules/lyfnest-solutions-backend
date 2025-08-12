@@ -380,7 +380,7 @@ const submissionForm = asyncHandler(async (req, res) => {
     //   initialSlot: appointmentDetails.assignedSlot,
     //   policyType: 'Term', // Track initial slot
     // });
-        const appointmentDetails = await scheduleAppointment();
+    const appointmentDetails = await scheduleAppointment();
     const newAppointment = new Appointment({
       formId: savedForm._id,
       formType: 'termForm',
@@ -407,10 +407,15 @@ const submissionForm = asyncHandler(async (req, res) => {
         }
       };
       
-      req.io.emit('newAppointment', appointmentWithUser);
-      console.log('✅ WebSocket event emitted for new appointment');
+            req.io.emit('newAppointment', appointmentWithUser);
+      console.log('✅ WebSocket event emitted IMMEDIATELY for new appointment:', savedAppointment._id);
+      
+      // Also emit to a specific admin room if available
+      req.io.to('admins').emit('newAppointment', appointmentWithUser);
+    } else {
+      console.warn('⚠️  req.io is not available - WebSocket not emitted');
     }
-
+ 
 
     // Send confirmation email to user
     let userEmailSent = false;
@@ -635,18 +640,19 @@ const contactUserByEmail = asyncHandler(async (req, res) => {
     // Validation
     if (!appointmentId || !userEmail || !userName) {
       return res.status(400).json({ 
+        success:false,
         error: 'Missing required fields: appointmentId, userEmail, userName' 
       });
     }
 
     if (!isValidEmail(userEmail)) {
-      return res.status(400).json({ error: 'Invalid email format' });
+      return res.status(400).json({success:false, error: 'Invalid email format' });
     }
 
     // Find the appointment
     const appointment = await Appointment.findById(appointmentId);
     if (!appointment) {
-      return res.status(404).json({ error: 'Appointment not found' });
+      return res.status(404).json({ success:false, error: 'Appointment not found' });
     }
 
     // Use static scheduler link
@@ -760,7 +766,13 @@ Email: ${process.env.SES_SENDER_EMAIL}`;
       console.log('✅ Email sent successfully to:', userEmail);
     } catch (emailError) {
       console.error('❌ Email sending failed:', emailError);
-      throw new Error('Failed to send scheduler email');
+        return res.status(500).json({ 
+        success: false,
+        message: 'Failed to send scheduler email',
+        error: emailError.message 
+      });
+
+      
     }
 
     const updatedAppointment = await Appointment.findByIdAndUpdate(
@@ -798,6 +810,7 @@ Email: ${process.env.SES_SENDER_EMAIL}`;
     res.status(200).json({
       success: true,
       message: 'Scheduler link sent successfully',
+      appointment: updatedAppointment, 
       appointmentId,
       contactMethod: 'email',
       sentAt: new Date(),
