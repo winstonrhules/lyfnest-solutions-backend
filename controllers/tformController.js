@@ -368,18 +368,7 @@ const submissionForm = asyncHandler(async (req, res) => {
 
     const savedForm = await newTform.save();
 
-    // Schedule appointment
-    // const appointmentDetails = await scheduleAppointment();
-    // const newAppointment = new Appointment({
-    //   formId: savedForm._id,
-    //   formType: 'termForm',
-    //   formData: req.body,
-    //   contactWindowStart: appointmentDetails.contactWindowStart,
-    //   contactWindowEnd: appointmentDetails.contactWindowEnd,
-    //   assignedSlot: appointmentDetails.assignedSlot,
-    //   initialSlot: appointmentDetails.assignedSlot,
-    //   policyType: 'Term', // Track initial slot
-    // });
+
     const appointmentDetails = await scheduleAppointment();
     const newAppointment = new Appointment({
       formId: savedForm._id,
@@ -574,26 +563,6 @@ const submissionForm = asyncHandler(async (req, res) => {
   }
 });
 
-//     res.status(201).json({
-//       message: 'Term Life Insurance Form Submission Successful', 
-//       userEmail: userEmailSent,
-//       adminAlert: adminAlertSent,
-//       appointment: {
-//         slot: appointmentDetails.assignedSlot,
-//         windowStart: appointmentDetails.contactWindowStart,
-//         windowEnd: appointmentDetails.contactWindowEnd
-//       },
-//     });
-
-//   } catch (error) {
-//     console.error("SUBMISSION FAILURE DETAILS:", {
-//       message: error.message,
-//       stack: error.stack,
-//       body: req.body
-//     });
-//     res.status(500).json({ error: 'Form submission failed: ' + error.message });
-//   }
-// });
 
 // GET all term forms
 const getallTforms  = asyncHandler(async (req, res) => {
@@ -624,7 +593,6 @@ const deleteForm = asyncHandler(async (req, res) => {
   }
 })
 
-// CONTACT USER VIA EMAIL WITH SCHEDULER LINK
 const contactUserByEmail = asyncHandler(async (req, res) => {
   try {
     const { 
@@ -640,19 +608,19 @@ const contactUserByEmail = asyncHandler(async (req, res) => {
     // Validation
     if (!appointmentId || !userEmail || !userName) {
       return res.status(400).json({ 
-        success:false,
+        success: false,
         error: 'Missing required fields: appointmentId, userEmail, userName' 
       });
     }
 
     if (!isValidEmail(userEmail)) {
-      return res.status(400).json({success:false, error: 'Invalid email format' });
+      return res.status(400).json({success: false, error: 'Invalid email format' });
     }
 
     // Find the appointment
     const appointment = await Appointment.findById(appointmentId);
     if (!appointment) {
-      return res.status(404).json({ success:false, error: 'Appointment not found' });
+      return res.status(404).json({ success: false, error: 'Appointment not found' });
     }
 
     // Use static scheduler link
@@ -761,20 +729,21 @@ Email: ${process.env.SES_SENDER_EMAIL}`;
     };
 
     // Send the email
-       try {
+    let emailSent = false;
+    try {
       await sesClient.send(new SendEmailCommand(params));
       console.log('✅ Email sent successfully to:', userEmail);
+      emailSent = true;
     } catch (emailError) {
       console.error('❌ Email sending failed:', emailError);
-        return res.status(500).json({ 
+      return res.status(500).json({ 
         success: false,
         message: 'Failed to send scheduler email',
         error: emailError.message 
       });
-
-      
     }
 
+    // ✅ CRITICAL: Update appointment status to 'contacted' IMMEDIATELY after email success
     const updatedAppointment = await Appointment.findByIdAndUpdate(
       appointmentId,
       {
@@ -786,38 +755,81 @@ Email: ${process.env.SES_SENDER_EMAIL}`;
       { new: true }
     );
 
-    // ✅ EMIT WEBSOCKET UPDATE EVENT
-    if (req.io && updatedAppointment) {
-      const appointmentWithUser = await Appointment.findById(appointmentId)
-        .populate('formId')
-        .lean();
-      
-      // Add user info for frontend
-      if (appointmentWithUser.formData) {
-        appointmentWithUser.user = {
-          firstName: appointmentWithUser.formData.firstName || 'N/A',
-          lastName: appointmentWithUser.formData.lastName || 'N/A',
-          email: appointmentWithUser.formData.Email || appointmentWithUser.formData.email || 'N/A',
-          phoneNumber: appointmentWithUser.formData.phoneNumber || 'N/A'
-        };
-      }
-      
-      req.io.emit('updateAppointment', appointmentWithUser);
-      console.log('✅ WebSocket update event emitted for appointment:', appointmentId);
+    if (!updatedAppointment) {
+      console.error('❌ Failed to update appointment status');
+      return res.status(500).json({ 
+        success: false,
+        message: 'Email sent but failed to update appointment status'
+      });
     }
 
-    // ✅ RETURN SUCCESS RESPONSE
+    console.log('✅ Appointment status updated to contacted:', updatedAppointment._id);
+
+    // ✅ EMIT WEBSOCKET UPDATE EVENT IMMEDIATELY
+    if (req.io && updatedAppointment) {
+      try {
+        const appointmentWithUser = await Appointment.findById(appointmentId)
+          .populate('formId')
+          .lean();
+        
+        // Add user info for frontend
+        if (appointmentWithUser.formData || appointmentWithUser.formId) {
+          const formInfo = appointmentWithUser.formData || appointmentWithUser.formId;
+          appointmentWithUser.user = {
+            firstName: formInfo.firstName || userName.split(' ')[0] || 'N/A',
+            lastName: formInfo.lastName || userName.split(' ')[1] || 'N/A',
+            email: formInfo.Email || formInfo.email || userEmail || 'N/A',
+            phoneNumber: formInfo.phoneNumber || 'N/A'
+          };
+        } else {
+          // Fallback user info
+          appointmentWithUser.user = {
+            firstName: userName.split(' ')[0] || 'N/A',
+            lastName: userName.split(' ')[1] || 'N/A',
+            email: userEmail || 'N/A',
+            phoneNumber: 'N/A'
+          };
+        }
+        
+        // Emit to all clients and admin room
+        req.io.emit('updateAppointment', appointmentWithUser);
+        req.io.to('admins').emit('updateAppointment', appointmentWithUser);
+        console.log('✅ WebSocket update event emitted for appointment:', appointmentId);
+      } catch (wsError) {
+        console.error('❌ WebSocket emission failed:', wsError);
+        // Don't fail the request if WebSocket fails
+      }
+    } else {
+      console.warn('⚠️  req.io is not available - WebSocket not emitted');
+    }
+
+    // ✅ RETURN SUCCESS RESPONSE WITH UPDATED APPOINTMENT
     res.status(200).json({
       success: true,
       message: 'Scheduler link sent successfully',
-      appointment: updatedAppointment, 
+      appointment: {
+        _id: updatedAppointment._id,
+        status: updatedAppointment.status,
+        lastContactDate: updatedAppointment.lastContactDate,
+        contactMethod: updatedAppointment.contactMethod,
+        contactedBy: updatedAppointment.contactedBy,
+        assignedSlot: updatedAppointment.assignedSlot,
+        formType: updatedAppointment.formType,
+        formData: updatedAppointment.formData,
+        user: {
+          firstName: userName.split(' ')[0] || 'N/A',
+          lastName: userName.split(' ')[1] || 'N/A',
+          email: userEmail,
+          phoneNumber: formData?.phoneNumber || 'N/A'
+        }
+      },
       appointmentId,
       contactMethod: 'email',
       sentAt: new Date(),
       recipient: userEmail,
       schedulerLink: schedulerLink,
-      emailSent: true,
-      status: 'contacted'
+      emailSent: emailSent,
+      statusUpdated: true
     });
 
   } catch (error) {
@@ -831,35 +843,215 @@ Email: ${process.env.SES_SENDER_EMAIL}`;
 });
 
 
+// CONTACT USER VIA EMAIL WITH SCHEDULER LINK
+// const contactUserByEmail = asyncHandler(async (req, res) => {
+//   try {
+//     const { 
+//       appointmentId, 
+//       userEmail, 
+//       userName, 
+//       subject, 
+//       message,
+//       adminName,
+//       contactMethod = 'email'
+//     } = req.body;
 
-    // Update appointment status
-//     appointment.status = 'contacted';
-//     appointment.lastContactDate = new Date();
-//     appointment.contactMethod = contactMethod;
-//     appointment.contactedBy = adminName || 'Admin';
-//      appointment.zoomMeeting = zoomResponse.data.meetingInfo.meetingId;
-//     await appointment.save();
-            
+//     // Validation
+//     if (!appointmentId || !userEmail || !userName) {
+//       return res.status(400).json({ 
+//         success:false,
+//         error: 'Missing required fields: appointmentId, userEmail, userName' 
+//       });
+//     }
 
+//     if (!isValidEmail(userEmail)) {
+//       return res.status(400).json({success:false, error: 'Invalid email format' });
+//     }
+
+//     // Find the appointment
+//     const appointment = await Appointment.findById(appointmentId);
+//     if (!appointment) {
+//       return res.status(404).json({ success:false, error: 'Appointment not found' });
+//     }
+
+//     // Use static scheduler link
+//     const schedulerLink = process.env.ZOOM_URL;
+
+//     // Get form details only for termForm
+//     let formData = null;
+//     if (appointment.formType === 'termForm' && appointment.formId) {
+//       formData = await Tform.findById(appointment.formId);
+//     }
+    
+//     // Default subject and message
+//     const emailSubject = subject || `Schedule Your Financial Consultation - LyfNest Solutions`;
+    
+//     const defaultMessage = `Hi ${userName},
+
+// Thank you for submitting your request! I'm following up to schedule your financial consultation.
+
+// Please use the link below to pick a time that works best for you:
+// ${schedulerLink}
+
+// ${formData ? `Based on your submitted information:
+// ${formData.coverageAmount ? `• Coverage Amount: ${formData.coverageAmount}\n` : ''}
+// ${formData.preferredTerm ? `• Preferred Term: ${formData.preferredTerm}\n` : ''}
+// ` : ''}
+
+// Once you schedule your preferred time, I'll receive a notification and we'll be all set for our meeting.
+
+// Best regards,
+// ${adminName || 'LyfNest Solutions Team'}
+// Email: ${process.env.SES_SENDER_EMAIL}`;
+
+//     const emailMessage = message || defaultMessage;
+
+//     // Send email with scheduler link
+//     const params = {
+//       Destination: { ToAddresses: [userEmail] },
+//       Message: {
+//         Body: {
+//           Html: {
+//             Charset: "UTF-8",
+//             Data: `
+//               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+//                 <div style="background: #a4dcd7; color: white; padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+//                   <img src="https://res.cloudinary.com/dma2ht84k/image/upload/v1753279441/lyfnest-logo_byfywb.png" alt="LyfNest Solutions Logo" style="width: 50px; height: 50px; margin-bottom: 10px;">
+//                   <h2 style="margin: 0;">Schedule Your Consultation</h2>
+//                 </div>
+              
+//                 <div style="background: #ffffff; padding: 30px; border: 1px solid #e0e0e0; border-top: none;">
+//                   <div style="white-space: pre-line; line-height: 1.6; color: #333;">
+//                     ${emailMessage.replace(/\n/g, '<br>')}
+//                   </div>
+                  
+//                   <div style="text-align: center; margin: 30px 0;">
+//                     <a href="${schedulerLink}" 
+//                        style="background: #4caf50; 
+//                               color: white; 
+//                               padding: 15px 30px; 
+//                               text-decoration: none; 
+//                               border-radius: 5px;
+//                               font-weight: bold;
+//                               font-size: 16px;
+//                               display: inline-block;">
+//                       📅 Schedule My Meeting
+//                     </a>
+//                   </div>
+                  
+//                   ${formData ? `
+//                   <div style="background: #f8f9fa; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #4caf50;">
+//                     <h3 style="color: #2e7d32; margin-top: 0;">Your Inquiry Details:</h3>
+//                     <ul style="color: #555; margin: 10px 0;">
+//                       ${formData.coverageAmount ? `<li><strong>Coverage Amount:</strong> ${formData.coverageAmount}</li>` : ''}
+//                       ${formData.preferredTerm ? `<li><strong>Preferred Term:</strong> ${formData.preferredTerm}</li>` : ''}
+//                       ${formData.phoneNumber ? `<li><strong>Phone:</strong> ${formData.phoneNumber}</li>` : ''}
+//                     </ul>
+//                   </div>
+//                   ` : ''}
+                  
+//                   <div style="background: #e3f2fd; padding: 15px; border-radius: 5px; margin-top: 20px;">
+//                     <p style="margin: 0; color: #1976d2; font-size: 14px;">
+//                       <strong>📝 Note:</strong> After you schedule, I'll receive an automatic notification with your chosen time and will prepare for our meeting accordingly.
+//                     </p>
+//                   </div>
+//                 </div>
+                
+//                 <div style="background: #f5f5f5; padding: 20px; text-align: center; border-radius: 0 0 10px 10px;">
+//                   <p style="margin: 0; color: #666; font-size: 14px;">
+//                     <strong>LyfNest Solutions</strong><br>
+//                     Email: ${process.env.SES_SENDER_EMAIL}
+//                   </p>
+//                 </div>
+//               </div>
+//             `
+//           },
+//           Text: {
+//             Charset: "UTF-8",
+//             Data: `${emailMessage}\n\nSchedule your meeting: ${schedulerLink}`
+//           }
+//         },
+//         Subject: {
+//           Charset: "UTF-8",
+//           Data: emailSubject
+//         }
+//       },
+//       Source: process.env.SES_SENDER_EMAIL
+//     };
+
+//     // Send the email
+//        try {
+//       await sesClient.send(new SendEmailCommand(params));
+//       console.log('✅ Email sent successfully to:', userEmail);
+//     } catch (emailError) {
+//       console.error('❌ Email sending failed:', emailError);
+//         return res.status(500).json({ 
+//         success: false,
+//         message: 'Failed to send scheduler email',
+//         error: emailError.message 
+//       });
+
+      
+//     }
+
+//     const updatedAppointment = await Appointment.findByIdAndUpdate(
+//       appointmentId,
+//       {
+//         status: 'contacted',
+//         lastContactDate: new Date(),
+//         contactMethod: contactMethod,
+//         contactedBy: adminName || 'Admin'
+//       },
+//       { new: true }
+//     ).lean();
+
+//     // ✅ EMIT WEBSOCKET UPDATE EVENT
+//     if (req.io && updatedAppointment) {
+//       const appointmentWithUser = await Appointment.findById(appointmentId)
+//         .populate('formId')
+//         .lean();
+      
+//       // Add user info for frontend
+//       if (appointmentWithUser.formData) {
+//         appointmentWithUser.user = {
+//           firstName: appointmentWithUser.formData.firstName || 'N/A',
+//           lastName: appointmentWithUser.formData.lastName || 'N/A',
+//           email: appointmentWithUser.formData.Email || appointmentWithUser.formData.email || 'N/A',
+//           phoneNumber: appointmentWithUser.formData.phoneNumber || 'N/A'
+//         };
+//       }
+      
+//       req.io.emit('updateAppointment', appointmentWithUser);
+//       console.log('✅ WebSocket update event emitted for appointment:', appointmentId);
+//     }
+
+//     // ✅ RETURN SUCCESS RESPONSE
 //     res.status(200).json({
-//       message: 'Email sent successfully with scheduler link',
+//       success: true,
+//       message: 'Scheduler link sent successfully',
+//       appointment: updatedAppointment, 
 //       appointmentId,
 //       contactMethod: 'email',
 //       sentAt: new Date(),
 //       recipient: userEmail,
 //       schedulerLink: schedulerLink,
 //       emailSent: true,
-//       zoomMeetingCreated: true
+//       status: 'contacted'
 //     });
 
 //   } catch (error) {
-//     console.error("Contact Email Error:", error);
+//     console.error("❌ Contact Email Error:", error);
 //     res.status(500).json({ 
+//       success: false,
 //       message: 'Failed to send contact email',
 //       error: error.message 
 //     });
 //   }
 // });
+
+
+
+
 
 // Notification handlers
 const getAllNotifs = asyncHandler(async (req, res) => {
