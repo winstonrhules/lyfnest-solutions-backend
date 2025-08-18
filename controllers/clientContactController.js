@@ -1,6 +1,6 @@
 const asyncHandler = require('express-async-handler');
 const ClientContact = require('../models/clientContactModels');
-
+const Appointment = require('../models/appointmentModels');
 // Create new client contact
 const createClientContact = asyncHandler(async (req, res) => {
   try {
@@ -15,6 +15,25 @@ const createClientContact = asyncHandler(async (req, res) => {
     }
 
     const newContact = await ClientContact.create(req.body);
+      const newAppointment = await Appointment.create({
+      user: {
+        firstName: req.body.firstName,
+        lastName: req.body.lastName,
+        email: req.body.Email,
+        Dob:req.body.Dob
+      },
+      assignedSlot: req.body.policyEffectiveDate,
+      formType: 'contact_list',
+      policyType: req.body.policyType,
+      policyEffectiveDate: req.body.policyEffectiveDate,
+      annualReviewDate: req.body.annualReviewDate,
+      nextFollowUpAt: req.body.nextFollowUpAt,
+      isContactList: true,
+      appointmentType:'policy_review',
+      clientContactId: newContact._id
+    });
+
+
     res.status(201).json(newContact);
   } catch (error) {
     res.status(400).json({

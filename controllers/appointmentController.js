@@ -1,4 +1,4 @@
-// ✅ ENHANCED APPOINTMENT CONTROLLER (appointmentController.js)
+
 const asyncHandler = require('express-async-handler');
 const Appointment = require('../models/appointmentModels');
 const Form = require('../models/formModels');
@@ -10,24 +10,28 @@ const Notification = require('../models/notificationModels');
 
 // ✅ HELPER FUNCTION TO ADD USER INFO TO APPOINTMENT
 const populateAppointmentWithUser = async (appointment) => {
-  if (!appointment.formData) return appointment;
+  if (appointment.isContactList && appointment.formData) return appointment;
   
-  const formData = appointment.formData;
+  if(appointment.formData){
   return {
     ...appointment,
     user: {
-      firstName: formData.firstName || 'N/A',
-      lastName: formData.lastName || 'N/A',
-      email: formData.Email || formData.email || 'N/A',
-      phoneNumber: formData.phoneNumber || 'N/A'
+      firstName: appointment.formData.firstName || 'N/A',
+      lastName: appointment.formData.lastName || 'N/A',
+      email: appointment.formData.Email || appointment.formData.email || 'N/A',
+      phoneNumber: appointment.formData.phoneNumber || 'N/A',
+      Dob:appointment.formData.Dob|| null
     }
   };
+}
+return appointment;
 };
 
 // ✅ GET ALL APPOINTMENTS
 const getAppointments = asyncHandler(async (req, res) => {
   try {
     const appointments = await Appointment.find()
+      .populate('clientContactId', 'policyType policyEffectiveDate annualReviewDate')
       .sort({ assignedSlot: 1 })
       .lean();
 

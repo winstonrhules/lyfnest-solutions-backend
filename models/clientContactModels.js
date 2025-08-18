@@ -1,5 +1,3 @@
-
-
 const mongoose = require('mongoose');
 
 const clientContactSchema = new mongoose.Schema({

@@ -1,77 +1,3 @@
-// const mongoose = require('mongoose');
-
-// const appointmentSchema = new mongoose.Schema({
-//  user: {
-//   firstName: String,
-//   lastName: String,
-//   email: String,
-//   phoneNumber: String
-// },
-//   formId: {
-//     type: mongoose.Schema.Types.ObjectId,
-//     ref: 'Form',
-//     required: true
-//   },
-//   formType:{
-//       type: String, 
-//       required: true,
-//       enum:['mainForm', 'termForm', 'wholeForm', 'indexedForm', 'finalForm', 'zoomBooking']
-//     },
-//     formData:{
-//     type: mongoose.Schema.Types.Mixed, 
-//     required: true,
-//   },
-
-//   zoomMeeting: {
-//   type: mongoose.Schema.Types.ObjectId,
-//   ref: 'ZoomMeeting'
-// },
-
-  
-//   contactWindowStart: {
-//     type: Date,
-//     required: true
-//   },
-  
-//   contactWindowEnd: {
-//     type: Date,
-//     required: true
-//   },
-  
-//   initialSlot: {
-//     type: Date,
-//     required: true
-//   },
-//   assignedSlot: {
-//     type: Date,
-//     required: true
-//   },
-//   status: {
-//     type: String,
-//     enum: ['scheduled', 'completed', 'booked', 'missed', 'contacted'],
-//     default: 'scheduled'
-//   },
-
-//   zoomMeetingId: {
-//     type: String,
-//     required: false,
-//   },
-    
-//   source: {
-//     type: String,
-//     enum: ['zoom', 'manual'],
-//     default: 'manual'
-//   },
-
-// lastContactDate: Date,
-// contactMethod: String,
-// contactedBy: String,
-  
-// }, { timestamps: true });
-
-// module.exports = mongoose.model('Appointment', appointmentSchema);
-
-
 const mongoose = require('mongoose');
 
 const appointmentSchema = new mongoose.Schema({
@@ -79,7 +5,8 @@ const appointmentSchema = new mongoose.Schema({
     firstName: String,
     lastName: String,
     email: String,
-    phoneNumber: String
+    phoneNumber: String,
+    Dob:Date
   },
   formId: {
     type: mongoose.Schema.Types.ObjectId,
@@ -89,7 +16,7 @@ const appointmentSchema = new mongoose.Schema({
   formType: {
     type: String, 
     required: true,
-    enum: ['mainForm', 'termForm', 'wholeForm', 'indexedForm', 'finalForm', 'zoomBooking']
+    enum: ['mainForm', 'termForm', 'wholeForm', 'indexedForm', 'finalForm', 'zoomBooking', 'policy_review', 'contact_list']
   },
   formData: {
     type: mongoose.Schema.Types.Mixed, 
@@ -143,6 +70,14 @@ const appointmentSchema = new mongoose.Schema({
   enum: ['IUL', 'WL', 'Term', 'Final Expense'],
   required: true
 },
+
+  policyEffectiveDate: Date,
+  annualReviewDate: Date,
+  lastContactedAt: Date,
+  nextFollowUpAt: Date,
+  isContactList: { type: Boolean, default: false }, // To distinguish contact list entries
+  clientContactId: { type: mongoose.Schema.Types.ObjectId, ref: 'ClientContact' },// Reference to contact
+
 
 appointmentType: {
   type: String,
