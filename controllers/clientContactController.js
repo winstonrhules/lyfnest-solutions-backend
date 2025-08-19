@@ -1,6 +1,7 @@
 const asyncHandler = require('express-async-handler');
 const ClientContact = require('../models/clientContactModels');
 const Appointment = require('../models/appointmentModels');
+const mongoose = require('mongoose'); 
 // Create new client contact
 const createClientContact = asyncHandler(async (req, res) => {
   try {
