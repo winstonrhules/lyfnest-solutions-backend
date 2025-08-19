@@ -53,6 +53,7 @@ const createClientContact = asyncHandler(async (req, res) => {
       policyEffectiveDate: req.body.policyEffectiveDate,
       annualReviewDate: req.body.annualReviewDate,
       nextFollowUpAt: req.body.nextFollowUpAt,
+      lastContactedAt:req.body.lastContactedAt,
       isContactList: true,
       appointmentType:'policy_review',
       clientContactId: newContact._id
