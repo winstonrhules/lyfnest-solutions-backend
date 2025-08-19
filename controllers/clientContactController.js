@@ -24,13 +24,13 @@ const createClientContact = asyncHandler(async (req, res) => {
     const contactWindowEnd = new Date(assignedSlot);
     contactWindowEnd.setHours(contactWindowEnd.getHours()+ 1)
 
-const formData= {
+     const formData= {
         firstName: req.body.firstName,
         lastName: req.body.lastName,
         email: req.body.Email,
         phoneNumber: req.body.phoneNumber,
         Dob:req.body.Dob
-      },
+      };
 
       const newAppointment = await Appointment.create({
       user: {
