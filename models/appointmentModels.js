@@ -11,7 +11,9 @@ const appointmentSchema = new mongoose.Schema({
   formId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Form',
-    required: true
+    required: function() {
+      return !this.isContactList;
+    }
   },
   formType: {
     type: String, 
@@ -20,7 +22,9 @@ const appointmentSchema = new mongoose.Schema({
   },
   formData: {
     type: mongoose.Schema.Types.Mixed, 
-    required: true,
+    required: function() {
+      return !this.isContactList;
+    }
   },
   zoomMeeting: {
     type: mongoose.Schema.Types.ObjectId,

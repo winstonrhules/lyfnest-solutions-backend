@@ -15,14 +15,38 @@ const createClientContact = asyncHandler(async (req, res) => {
     }
 
     const newContact = await ClientContact.create(req.body);
+
+    const assignedSlot = new Date(req.body.policyEffectiveDate)
+
+    const contactWindowStart = new Date(assignedSlot);
+    contactWindowStart.setHours(contactWindowStart.getHours()-1)
+
+    const contactWindowEnd = new Date(assignedSlot);
+    contactWindowEnd.setHours(contactWindowEnd.getHours()+ 1)
+
+const formData= {
+        firstName: req.body.firstName,
+        lastName: req.body.lastName,
+        email: req.body.Email,
+        phoneNumber: req.body.phoneNumber,
+        Dob:req.body.Dob
+      },
+
       const newAppointment = await Appointment.create({
       user: {
         firstName: req.body.firstName,
         lastName: req.body.lastName,
         email: req.body.Email,
+        phoneNumber: req.body.phoneNumber,
         Dob:req.body.Dob
       },
+      formId:new mongoose.Types.ObjectId(),
+      formData:formData,
       assignedSlot: req.body.policyEffectiveDate,
+      contactWindowStart:contactWindowStart,
+      contactWindowEnd:contactWindowEnd,
+      assignedSlot:assignedSlot,
+      initialSlot:assignedSlot,
       formType: 'contact_list',
       policyType: req.body.policyType,
       policyEffectiveDate: req.body.policyEffectiveDate,

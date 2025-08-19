@@ -17,7 +17,7 @@ const clientContactSchema = new mongoose.Schema({
       type: String, 
       required: true,
       validate: {
-        validator: v => /^\d{5}(-\d{4})?$/.test(v),
+        validator: v => /^\d{5}(-\d{4})?$/.test(v),   
         message: 'Invalid zip code'
       }
     }
