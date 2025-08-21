@@ -61,6 +61,26 @@ const updateAppointmentStatus = asyncHandler(async (req, res) => {
       return res.status(404).json({ error: 'Appointment not found' });
     }
 
+
+        const validStatusProgression = (oldStatus, newStatus) => {
+      const progression = {
+        'scheduled': ['contacted', 'booked', 'completed', 'missed'],
+        'contacted': ['booked', 'completed', 'missed'],
+        'booked': ['completed', 'missed'],
+        'completed': [],
+        'missed': []
+      };
+      
+      return progression[oldStatus]?.includes(newStatus) || oldStatus === newStatus;
+    };
+    
+    if (!validStatusProgression(appointment.status, status)) {
+      return res.status(400).json({ 
+        success: false, 
+        error: `Invalid status transition: ${appointment.status} → ${status}` 
+      });
+    }
+  
     // Update fields based on status
     const updateData = { lastUpdated: new Date() };
 

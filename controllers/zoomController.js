@@ -122,11 +122,9 @@ const parseZoomDate = (dateString) => {
   }
 };
 
-
- // FIXED: Enhanced sync function with proper appointment matching
 const syncZoomMeetings = async () => {
   try {
-    console.log('Starting Zoom meeting sync...');
+    console.log('🔄 Starting Zoom meeting sync...');
     const accessToken = await getZoomAccessToken();
     
     const response = await axios.get(
@@ -135,7 +133,7 @@ const syncZoomMeetings = async () => {
     );
 
     const meetings = response.data.meetings || [];
-    console.log(`Found ${meetings.length} Zoom meetings`);
+    console.log(`📋 Found ${meetings.length} Zoom meetings`);
 
     for (const meeting of meetings) {
       try {
@@ -150,18 +148,20 @@ const syncZoomMeetings = async () => {
         let existingZoomMeeting = await ZoomMeeting.findOne({ meetingId: meeting.id });
         
         if (existingZoomMeeting) {
-          // ✅ FIX 2: Only update if the meeting time actually changed
           const appointment = await Appointment.findById(existingZoomMeeting.appointment);
           
           if (appointment) {
             const currentSlotTime = new Date(appointment.assignedSlot).getTime();
             const newSlotTime = meetingStartTime.getTime();
             
-            // Only update if time actually changed
-            if (currentSlotTime !== newSlotTime) {
+            // ✅ Only update if time actually changed (allow 1-minute tolerance)
+            const timeDifference = Math.abs(currentSlotTime - newSlotTime);
+            const oneMinute = 60 * 1000;
+            
+            if (timeDifference > oneMinute) {
               console.log(`⏰ Meeting time changed for appointment ${appointment._id}`);
               
-              const updatedAppointment = await Appointment.findByIdAndUpdate(
+              await Appointment.findByIdAndUpdate(
                 appointment._id,
                 {
                   assignedSlot: meetingStartTime,
@@ -171,170 +171,185 @@ const syncZoomMeetings = async () => {
                 },
                 { runValidators: true, new: true }
               );
-              
-              // ✅ EMIT WEBSOCKET UPDATE FOR TIME CHANGE ONLY
-              if (global.io && updatedAppointment) {
-                const appointmentWithUser = await Appointment.findById(appointment._id)
-                  .populate('formId')
-                  .lean();
-                
-                // Add user info
-                if (appointmentWithUser.formId || appointmentWithUser.formData) {
-                  const formInfo = appointmentWithUser.formId || appointmentWithUser.formData;
-                  appointmentWithUser.user = {
-                    firstName: formInfo.firstName || 'N/A',
-                    lastName: formInfo.lastName || 'N/A',
-                    email: formInfo.Email || formInfo.email || 'N/A',
-                    phoneNumber: formInfo.phoneNumber || 'N/A'
-                  };
-                }
-                
-                // Make sure the new time is reflected
-                appointmentWithUser.assignedSlot = meetingStartTime;
-                appointmentWithUser.zoomMeeting = existingZoomMeeting;
-                
-                global.io.emit('updateAppointment', appointmentWithUser);
-                console.log('✅ Sent time update for appointment:', appointmentWithUser._id);
-              }
             }
             
-            // ✅ FIX 3: Only mark as completed if meeting actually ended
+            // ✅ Only mark as completed if meeting actually ended and not already completed
             if (meetingEnded && appointment.status !== 'completed') {
               await Appointment.findByIdAndUpdate(
                 appointment._id,
-                { status: 'completed' },
+                { 
+                  status: 'completed',
+                  lastUpdated: new Date()
+                },
                 { new: true }
               );
-              
               console.log(`✅ Meeting completed for appointment ${appointment._id}`);
             }
           }
           continue; // Skip further processing for existing meetings
         }
 
-        // ✅ FIX 4: Enhanced matching logic for new meetings
+        // ✅ FIX 2: STRICT matching logic for new meetings - only match CONTACTED appointments
         console.log(`🔍 Processing new meeting: ${meeting.id} - ${meeting.topic}`);
         
-        // Get ONLY contacted appointments (ready to be booked)
+        // ✅ CRITICAL: Only get appointments that are CONTACTED and ready to be booked
         const contactedAppointments = await Appointment.find({
-          status: 'contacted', // ✅ ONLY contacted appointments can be booked
+          status: 'contacted', // ✅ MUST be contacted status
           zoomMeeting: { $exists: false }, // ✅ No existing zoom meeting
-          lastContactDate: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } // ✅ Contacted within last 7 days
-        }).populate('formId');
+          $or: [
+            { lastContactDate: { $gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } }, // Last 24 hours
+            { lastContactDate: { $exists: false } } // Fallback for legacy data
+          ]
+        }).populate('formId').sort({ lastContactDate: -1 }); // Most recently contacted first
 
-        console.log(`📋 Found ${contactedAppointments.length} contacted appointments available for booking`);
+        console.log(`📋 Found ${contactedAppointments.length} CONTACTED appointments available for booking`);
+
+        if (contactedAppointments.length === 0) {
+          console.log(`⚠️ No contacted appointments available for meeting: ${meeting.id}`);
+          continue;
+        }
 
         let matchedAppointment = null;
 
-        // ✅ FIX 5: Better matching logic
+        // ✅ FIX 3: Enhanced matching by name in meeting topic
         if (meeting.topic && meeting.topic.includes('Financial Consultation -')) {
           const nameFromTopic = meeting.topic.replace('Financial Consultation - ', '').trim();
           console.log(`🔍 Looking for customer: "${nameFromTopic}"`);
           
+          // Try exact name match first
           matchedAppointment = contactedAppointments.find(app => {
             const userData = app.formId || app.formData || app.user;
             if (!userData) return false;
             
-            const firstName = userData.firstName || '';
-            const lastName = userData.lastName || '';
+            const firstName = (userData.firstName || '').toLowerCase().trim();
+            const lastName = (userData.lastName || '').toLowerCase().trim();
             const fullName = `${firstName} ${lastName}`.trim();
-            const email = userData.Email || userData.email || '';
+            const topicName = nameFromTopic.toLowerCase().trim();
             
-            console.log(`📝 Checking against: "${fullName}" (${email})`);
+            console.log(`📝 Checking: "${fullName}" vs "${topicName}"`);
             
-            // Match by name or email
-            return (
-              nameFromTopic.toLowerCase().includes(fullName.toLowerCase()) ||
-              fullName.toLowerCase().includes(nameFromTopic.toLowerCase()) ||
-              (email && nameFromTopic.toLowerCase().includes(email.toLowerCase()))
-            );
+            // Exact match
+            return fullName === topicName || 
+                   topicName.includes(fullName) || 
+                   fullName.includes(topicName);
           });
         }
 
-        // ✅ FIX 6: Fallback matching by time proximity (within 2 hours of original slot)
-        if (!matchedAppointment && contactedAppointments.length > 0) {
+        // ✅ FIX 4: Fallback to email matching if available
+        if (!matchedAppointment && meeting.topic) {
+          const emailRegex = /([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/;
+          const emailFromTopic = meeting.topic.match(emailRegex)?.[1];
+          
+          if (emailFromTopic) {
+            console.log(`📧 Trying email match: ${emailFromTopic}`);
+            
+            matchedAppointment = contactedAppointments.find(app => {
+              const userData = app.formId || app.formData || app.user;
+              const userEmail = (userData.Email || userData.email || '').toLowerCase();
+              return userEmail === emailFromTopic.toLowerCase();
+            });
+          }
+        }
+
+        // ✅ FIX 5: Time-based matching as last resort (within 2 hours of CONTACTED appointment)
+        if (!matchedAppointment) {
           console.log('🕐 Attempting time-based matching...');
           
           matchedAppointment = contactedAppointments.find(app => {
             const timeDiff = Math.abs(new Date(app.assignedSlot).getTime() - meetingStartTime.getTime());
             const twoHours = 2 * 60 * 60 * 1000;
-            return timeDiff <= twoHours;
-          });
-        }
-
-        // ✅ FIX 7: Only proceed if we found a valid match
-        if (matchedAppointment) {
-          console.log(`✅ Matched meeting ${meeting.id} with appointment ${matchedAppointment._id}`);
-          
-          // ✅ Update matched appointment to booked status with new time
-          const updatedAppointment = await Appointment.findByIdAndUpdate(
-            matchedAppointment._id,
-            {
-              assignedSlot: meetingStartTime, // ✅ Use the ACTUAL meeting time
-              contactWindowStart: meetingStartTime,
-              contactWindowEnd: meetingEndTime,
-              status: meetingEnded ? 'completed' : 'booked', // ✅ Correct status based on meeting state
-              lastUpdated: new Date()
-            },
-            { runValidators: true, new: true }
-          );
-
-          // ✅ Create ZoomMeeting record
-          const newZoomMeeting = new ZoomMeeting({
-            appointment: matchedAppointment._id,
-            meetingId: meeting.id,
-            joinUrl: meeting.join_url,
-            startUrl: meeting.start_url,
-            hostEmail: meeting.host_email,
-            createdAt: parseZoomDate(meeting.created_at) || new Date(),
-            syncedAt: new Date()
-          });
-
-          await newZoomMeeting.save();
-          
-          // ✅ Link the zoom meeting to appointment
-          await Appointment.findByIdAndUpdate(
-            matchedAppointment._id,
-            { zoomMeeting: newZoomMeeting._id },
-            { runValidators: true }
-          );
-
-          // ✅ EMIT WEBSOCKET UPDATE FOR NEW BOOKING
-          if (global.io && updatedAppointment) {
-            const appointmentWithUser = await Appointment.findById(matchedAppointment._id)
-              .populate('formId')
-              .lean();
-              
-            // Add user info
-            if (appointmentWithUser.formId || appointmentWithUser.formData) {
-              const formInfo = appointmentWithUser.formId || appointmentWithUser.formData;
-              appointmentWithUser.user = {
-                firstName: formInfo.firstName || 'N/A',
-                lastName: formInfo.lastName || 'N/A',
-                email: formInfo.Email || formInfo.email || 'N/A',
-                phoneNumber: formInfo.phoneNumber || 'N/A'
-              };
+            const isTimeMatch = timeDiff <= twoHours;
+            
+            if (isTimeMatch) {
+              console.log(`⏰ Time match found: ${timeDiff / 60000} minutes difference`);
             }
             
-            appointmentWithUser.zoomMeeting = newZoomMeeting;
-            appointmentWithUser.assignedSlot = meetingStartTime; // ✅ Ensure correct time
-            
-            global.io.emit('updateAppointment', appointmentWithUser);
-            console.log('✅ Zoom sync - New booking WebSocket update emitted for appointment:', matchedAppointment._id);
-          }
-
-          // ✅ Create notification
-          await Notification.create({
-            message: `Meeting ${meetingEnded ? 'completed' : 'scheduled'}: ${updatedAppointment.user?.firstName || 'Client'} ${updatedAppointment.user?.lastName || ''} - ${meetingStartTime.toLocaleDateString()} at ${meetingStartTime.toLocaleTimeString()}`,
-            formType: matchedAppointment.formType || 'meeting_scheduled',
-            read: false,
-            appointmentId: matchedAppointment._id
+            return isTimeMatch;
           });
-          
-          console.log(`✅ Successfully processed new booking for appointment: ${matchedAppointment._id}`);
-        } else {
-          console.log(`⚠️ No matching contacted appointment found for meeting: ${meeting.id} - ${meeting.topic}`);
         }
+
+        // ✅ FIX 6: Only proceed if we have a valid match
+        if (!matchedAppointment) {
+          console.log(`❌ No matching CONTACTED appointment found for meeting: ${meeting.id} - ${meeting.topic}`);
+          continue;
+        }
+
+        // ✅ FIX 7: Double-check the appointment is still in contacted status (prevent race conditions)
+        const freshAppointment = await Appointment.findById(matchedAppointment._id);
+        if (!freshAppointment || freshAppointment.status !== 'contacted') {
+          console.log(`⚠️ Appointment ${matchedAppointment._id} is no longer in contacted status (${freshAppointment?.status})`);
+          continue;
+        }
+
+        console.log(`✅ CONFIRMED MATCH: Meeting ${meeting.id} → Appointment ${matchedAppointment._id}`);
+
+        // ✅ FIX 8: Create ZoomMeeting record first
+        const newZoomMeeting = new ZoomMeeting({
+          appointment: matchedAppointment._id,
+          meetingId: meeting.id,
+          joinUrl: meeting.join_url,
+          startUrl: meeting.start_url,
+          hostEmail: meeting.host_email,
+          createdAt: parseZoomDate(meeting.created_at) || new Date(),
+          syncedAt: new Date()
+        });
+
+        await newZoomMeeting.save();
+        console.log(`✅ ZoomMeeting record created: ${newZoomMeeting._id}`);
+
+        // ✅ FIX 9: Update appointment with precise data
+        const updatedAppointment = await Appointment.findByIdAndUpdate(
+          matchedAppointment._id,
+          {
+            assignedSlot: meetingStartTime, // ✅ Use ACTUAL meeting time
+            contactWindowStart: meetingStartTime,
+            contactWindowEnd: meetingEndTime,
+            status: meetingEnded ? 'completed' : 'booked', // ✅ Correct status
+            zoomMeeting: newZoomMeeting._id, // ✅ Link zoom meeting
+            lastUpdated: new Date()
+          },
+          { runValidators: true, new: true }
+        );
+
+        if (!updatedAppointment) {
+          console.error(`❌ Failed to update appointment ${matchedAppointment._id}`);
+          continue;
+        }
+
+        // ✅ FIX 10: Emit WebSocket update with complete data
+        if (global.io) {
+          const appointmentWithUser = await Appointment.findById(matchedAppointment._id)
+            .populate('formId')
+            .lean();
+            
+          // Ensure user info is available
+          if (appointmentWithUser.formId || appointmentWithUser.formData) {
+            const formInfo = appointmentWithUser.formId || appointmentWithUser.formData;
+            appointmentWithUser.user = {
+              firstName: formInfo.firstName || 'N/A',
+              lastName: formInfo.lastName || 'N/A', 
+              email: formInfo.Email || formInfo.email || 'N/A',
+              phoneNumber: formInfo.phoneNumber || 'N/A'
+            };
+          }
+          
+          appointmentWithUser.zoomMeeting = newZoomMeeting;
+          appointmentWithUser.assignedSlot = meetingStartTime;
+          appointmentWithUser.status = meetingEnded ? 'completed' : 'booked';
+          
+          global.io.emit('updateAppointment', appointmentWithUser);
+          console.log(`📡 WebSocket update emitted for appointment: ${matchedAppointment._id} (${appointmentWithUser.status})`);
+        }
+
+        // ✅ FIX 11: Create notification
+        await Notification.create({
+          message: `Meeting ${meetingEnded ? 'completed' : 'booked'}: ${updatedAppointment.user?.firstName} ${updatedAppointment.user?.lastName} - ${meetingStartTime.toLocaleDateString()} at ${meetingStartTime.toLocaleTimeString()}`,
+          formType: matchedAppointment.formType || 'meeting_scheduled',
+          read: false,
+          appointmentId: matchedAppointment._id
+        });
+        
+        console.log(`✅ Successfully processed new booking for appointment: ${matchedAppointment._id} (Status: ${updatedAppointment.status})`);
 
       } catch (meetingError) {
         console.error(`❌ Error processing meeting ${meeting.id}:`, meetingError.message);
@@ -348,6 +363,292 @@ const syncZoomMeetings = async () => {
     throw error;
   }
 };
+
+// ✅ NEW: Delete Zoom meeting when appointment is deleted
+const deleteZoomMeeting = async (req, res) => {
+  try {
+    const { appointmentId } = req.params;
+    
+    // Find the appointment with zoom meeting
+    const appointment = await Appointment.findById(appointmentId).populate('zoomMeeting');
+    if (!appointment) {
+      return res.status(404).json({ error: 'Appointment not found' });
+    }
+    
+    // Delete from Zoom if there's a meeting
+    if (appointment.zoomMeeting && appointment.zoomMeeting.meetingId) {
+      try {
+        const accessToken = await getZoomAccessToken();
+        
+        await axios.delete(
+          `https://api.zoom.us/v2/meetings/${appointment.zoomMeeting.meetingId}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+        
+        console.log(`✅ Deleted Zoom meeting: ${appointment.zoomMeeting.meetingId}`);
+        
+        // Delete ZoomMeeting record from database
+        await ZoomMeeting.findByIdAndDelete(appointment.zoomMeeting._id);
+        console.log(`✅ Deleted ZoomMeeting record: ${appointment.zoomMeeting._id}`);
+        
+      } catch (zoomError) {
+        console.error('❌ Failed to delete Zoom meeting:', zoomError.response?.data || zoomError.message);
+        // Continue with appointment deletion even if Zoom deletion fails
+      }
+    }
+    
+    // Delete the appointment
+    await Appointment.findByIdAndDelete(appointmentId);
+    console.log(`✅ Deleted appointment: ${appointmentId}`);
+    
+    res.status(200).json({
+      success: true,
+      message: 'Appointment and associated Zoom meeting deleted successfully'
+    });
+    
+  } catch (error) {
+    console.error('Delete appointment error:', error);
+    res.status(500).json({ 
+      error: 'Failed to delete appointment',
+      details: error.message
+    });
+  }
+};
+
+
+
+
+
+ // FIXED: Enhanced sync function with proper appointment matching
+// const syncZoomMeetings = async () => {
+//   try {
+//     console.log('Starting Zoom meeting sync...');
+//     const accessToken = await getZoomAccessToken();
+    
+//     const response = await axios.get(
+//       'https://api.zoom.us/v2/users/me/meetings?type=upcoming&page_size=300',
+//       { headers: { Authorization: `Bearer ${accessToken}` } }
+//     );
+
+//     const meetings = response.data.meetings || [];
+//     console.log(`Found ${meetings.length} Zoom meetings`);
+
+//     for (const meeting of meetings) {
+//       try {
+//         const meetingStartTime = parseZoomDate(meeting.start_time);
+//         if (!meetingStartTime) continue;
+
+//         const meetingDuration = meeting.duration || 60;
+//         const meetingEndTime = new Date(meetingStartTime.getTime() + (meetingDuration * 60000));
+//         const meetingEnded = meetingEndTime < new Date();
+
+//         // ✅ FIX 1: Check if this meeting already exists in our database
+//         let existingZoomMeeting = await ZoomMeeting.findOne({ meetingId: meeting.id });
+        
+//         if (existingZoomMeeting) {
+//           // ✅ FIX 2: Only update if the meeting time actually changed
+//           const appointment = await Appointment.findById(existingZoomMeeting.appointment);
+          
+//           if (appointment) {
+//             const currentSlotTime = new Date(appointment.assignedSlot).getTime();
+//             const newSlotTime = meetingStartTime.getTime();
+            
+//             // Only update if time actually changed
+//             if (currentSlotTime !== newSlotTime) {
+//               console.log(`⏰ Meeting time changed for appointment ${appointment._id}`);
+              
+//               const updatedAppointment = await Appointment.findByIdAndUpdate(
+//                 appointment._id,
+//                 {
+//                   assignedSlot: meetingStartTime,
+//                   contactWindowStart: meetingStartTime,
+//                   contactWindowEnd: meetingEndTime,
+//                   lastUpdated: new Date()
+//                 },
+//                 { runValidators: true, new: true }
+//               );
+              
+//               // ✅ EMIT WEBSOCKET UPDATE FOR TIME CHANGE ONLY
+//               if (global.io && updatedAppointment) {
+//                 const appointmentWithUser = await Appointment.findById(appointment._id)
+//                   .populate('formId')
+//                   .lean();
+                
+//                 // Add user info
+//                 if (appointmentWithUser.formId || appointmentWithUser.formData) {
+//                   const formInfo = appointmentWithUser.formId || appointmentWithUser.formData;
+//                   appointmentWithUser.user = {
+//                     firstName: formInfo.firstName || 'N/A',
+//                     lastName: formInfo.lastName || 'N/A',
+//                     email: formInfo.Email || formInfo.email || 'N/A',
+//                     phoneNumber: formInfo.phoneNumber || 'N/A'
+//                   };
+//                 }
+                
+//                 // Make sure the new time is reflected
+//                 appointmentWithUser.assignedSlot = meetingStartTime;
+//                 appointmentWithUser.zoomMeeting = existingZoomMeeting;
+                
+//                 global.io.emit('updateAppointment', appointmentWithUser);
+//                 console.log('✅ Sent time update for appointment:', appointmentWithUser._id);
+//               }
+//             }
+            
+//             // ✅ FIX 3: Only mark as completed if meeting actually ended
+//             if (meetingEnded && appointment.status !== 'completed') {
+//               await Appointment.findByIdAndUpdate(
+//                 appointment._id,
+//                 { status: 'completed' },
+//                 { new: true }
+//               );
+              
+//               console.log(`✅ Meeting completed for appointment ${appointment._id}`);
+//             }
+//           }
+//           continue; // Skip further processing for existing meetings
+//         }
+
+//         // ✅ FIX 4: Enhanced matching logic for new meetings
+//         console.log(`🔍 Processing new meeting: ${meeting.id} - ${meeting.topic}`);
+        
+//         // Get ONLY contacted appointments (ready to be booked)
+//         const contactedAppointments = await Appointment.find({
+//           status: 'contacted', // ✅ ONLY contacted appointments can be booked
+//           zoomMeeting: { $exists: false }, // ✅ No existing zoom meeting
+//           lastContactDate: { $gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } // ✅ Contacted within last 7 days
+//         }).populate('formId');
+
+//         console.log(`📋 Found ${contactedAppointments.length} contacted appointments available for booking`);
+
+//         let matchedAppointment = null;
+
+//         // ✅ FIX 5: Better matching logic
+//         if (meeting.topic && meeting.topic.includes('Financial Consultation -')) {
+//           const nameFromTopic = meeting.topic.replace('Financial Consultation - ', '').trim();
+//           console.log(`🔍 Looking for customer: "${nameFromTopic}"`);
+          
+//           matchedAppointment = contactedAppointments.find(app => {
+//             const userData = app.formId || app.formData || app.user;
+//             if (!userData) return false;
+            
+//             const firstName = userData.firstName || '';
+//             const lastName = userData.lastName || '';
+//             const fullName = `${firstName} ${lastName}`.trim();
+//             const email = userData.Email || userData.email || '';
+            
+//             console.log(`📝 Checking against: "${fullName}" (${email})`);
+            
+//             // Match by name or email
+//             return (
+//               nameFromTopic.toLowerCase().includes(fullName.toLowerCase()) ||
+//               fullName.toLowerCase().includes(nameFromTopic.toLowerCase()) ||
+//               (email && nameFromTopic.toLowerCase().includes(email.toLowerCase()))
+//             );
+//           });
+//         }
+
+//         // ✅ FIX 6: Fallback matching by time proximity (within 2 hours of original slot)
+//         if (!matchedAppointment && contactedAppointments.length > 0) {
+//           console.log('🕐 Attempting time-based matching...');
+          
+//           matchedAppointment = contactedAppointments.find(app => {
+//             const timeDiff = Math.abs(new Date(app.assignedSlot).getTime() - meetingStartTime.getTime());
+//             const twoHours = 2 * 60 * 60 * 1000;
+//             return timeDiff <= twoHours;
+//           });
+//         }
+
+//         // ✅ FIX 7: Only proceed if we found a valid match
+//         if (matchedAppointment) {
+//           console.log(`✅ Matched meeting ${meeting.id} with appointment ${matchedAppointment._id}`);
+          
+//           // ✅ Update matched appointment to booked status with new time
+//           const updatedAppointment = await Appointment.findByIdAndUpdate(
+//             matchedAppointment._id,
+//             {
+//               assignedSlot: meetingStartTime, // ✅ Use the ACTUAL meeting time
+//               contactWindowStart: meetingStartTime,
+//               contactWindowEnd: meetingEndTime,
+//               status: meetingEnded ? 'completed' : 'booked', // ✅ Correct status based on meeting state
+//               lastUpdated: new Date()
+//             },
+//             { runValidators: true, new: true }
+//           );
+
+//           // ✅ Create ZoomMeeting record
+//           const newZoomMeeting = new ZoomMeeting({
+//             appointment: matchedAppointment._id,
+//             meetingId: meeting.id,
+//             joinUrl: meeting.join_url,
+//             startUrl: meeting.start_url,
+//             hostEmail: meeting.host_email,
+//             createdAt: parseZoomDate(meeting.created_at) || new Date(),
+//             syncedAt: new Date()
+//           });
+
+//           await newZoomMeeting.save();
+          
+//           // ✅ Link the zoom meeting to appointment
+//           await Appointment.findByIdAndUpdate(
+//             matchedAppointment._id,
+//             { zoomMeeting: newZoomMeeting._id },
+//             { runValidators: true }
+//           );
+
+//           // ✅ EMIT WEBSOCKET UPDATE FOR NEW BOOKING
+//           if (global.io && updatedAppointment) {
+//             const appointmentWithUser = await Appointment.findById(matchedAppointment._id)
+//               .populate('formId')
+//               .lean();
+              
+//             // Add user info
+//             if (appointmentWithUser.formId || appointmentWithUser.formData) {
+//               const formInfo = appointmentWithUser.formId || appointmentWithUser.formData;
+//               appointmentWithUser.user = {
+//                 firstName: formInfo.firstName || 'N/A',
+//                 lastName: formInfo.lastName || 'N/A',
+//                 email: formInfo.Email || formInfo.email || 'N/A',
+//                 phoneNumber: formInfo.phoneNumber || 'N/A'
+//               };
+//             }
+            
+//             appointmentWithUser.zoomMeeting = newZoomMeeting;
+//             appointmentWithUser.assignedSlot = meetingStartTime; // ✅ Ensure correct time
+            
+//             global.io.emit('updateAppointment', appointmentWithUser);
+//             console.log('✅ Zoom sync - New booking WebSocket update emitted for appointment:', matchedAppointment._id);
+//           }
+
+//           // ✅ Create notification
+//           await Notification.create({
+//             message: `Meeting ${meetingEnded ? 'completed' : 'scheduled'}: ${updatedAppointment.user?.firstName || 'Client'} ${updatedAppointment.user?.lastName || ''} - ${meetingStartTime.toLocaleDateString()} at ${meetingStartTime.toLocaleTimeString()}`,
+//             formType: matchedAppointment.formType || 'meeting_scheduled',
+//             read: false,
+//             appointmentId: matchedAppointment._id
+//           });
+          
+//           console.log(`✅ Successfully processed new booking for appointment: ${matchedAppointment._id}`);
+//         } else {
+//           console.log(`⚠️ No matching contacted appointment found for meeting: ${meeting.id} - ${meeting.topic}`);
+//         }
+
+//       } catch (meetingError) {
+//         console.error(`❌ Error processing meeting ${meeting.id}:`, meetingError.message);
+//       }
+//     }
+
+//     console.log('✅ Zoom sync completed successfully');
+    
+//   } catch (error) {
+//     console.error('❌ Zoom sync error:', error.response?.data || error.message);
+//     throw error;
+//   }
+// };
 
 
 // Enhanced sync function to capture user-scheduled meetings
@@ -783,4 +1084,14 @@ module.exports = {
   getAllZoomMeetings,
   manualSync,
   getZoomAccessToken,
+  deleteZoomMeeting // ✅ Add this new function
 };
+
+
+// module.exports = {
+//   createZoomMeeting,
+//   syncZoomMeetings,
+//   getAllZoomMeetings,
+//   manualSync,
+//   getZoomAccessToken,
+// };

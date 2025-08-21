@@ -615,7 +615,7 @@ const contactUserByEmail = asyncHandler(async (req, res) => {
       contactMethod = 'email'
     } = req.body;
 
-    // Validation
+    // ✅ Enhanced validation
     if (!appointmentId || !userEmail || !userName) {
       return res.status(400).json({ 
         success: false,
@@ -633,7 +633,15 @@ const contactUserByEmail = asyncHandler(async (req, res) => {
       return res.status(404).json({ success: false, error: 'Appointment not found' });
     }
 
-    // ✅ FIX 2: Prevent sending emails to appointments that are already contacted/booked
+    // ✅ FIX 2: Only allow contact for scheduled appointments
+    if (appointment.status !== 'scheduled') {
+      return res.status(400).json({ 
+        success: false, 
+        error: `Cannot send scheduler link. Appointment status is already: ${appointment.status}` 
+      });
+    }
+
+    // ✅ FIX 3: Prevent sending emails to appointments that were already contacted recently
     if (appointment.status === 'contacted' && appointment.lastContactDate) {
       const timeSinceLastContact = new Date() - new Date(appointment.lastContactDate);
       const oneHour = 60 * 60 * 1000;
@@ -653,7 +661,6 @@ const contactUserByEmail = asyncHandler(async (req, res) => {
        firstName: userName.split(' ')[0],
        lastName: userName.split(' ')[1] || '',
        email: userEmail,
-       // ✅ Add unique identifier to prevent cross-contamination
        appointmentRef: appointmentId
      });
 
@@ -774,15 +781,15 @@ Email: ${process.env.SES_SENDER_EMAIL}`;
       });
     }
 
-    // ✅ FIX 3: Update appointment status to 'contacted' with precise data
+    // ✅ FIX 4: Update appointment status to 'contacted' ONLY after successful email
     const updatedAppointment = await Appointment.findByIdAndUpdate(
       appointmentId,
       {
-        status: 'contacted', // ✅ Ensure status is exactly 'contacted'
+        status: 'contacted', // ✅ Change from scheduled to contacted
         lastContactDate: new Date(),
         contactMethod: contactMethod,
         contactedBy: adminName || 'Admin',
-        // ✅ IMPORTANT: Don't change assignedSlot here - preserve original slot
+        // ✅ CRITICAL: Preserve original slot - do NOT change assignedSlot here
         lastUpdated: new Date()
       },
       { new: true, runValidators: true }
@@ -796,16 +803,16 @@ Email: ${process.env.SES_SENDER_EMAIL}`;
       });
     }
 
-    console.log('✅ Appointment status updated to contacted:', updatedAppointment._id);
+    console.log(`✅ Appointment ${appointmentId} status updated: scheduled → contacted`);
 
-    // ✅ FIX 4: Emit WebSocket update with precise data
+    // ✅ FIX 5: Emit WebSocket update with precise data
     if (req.io && updatedAppointment) {
       try {
         const appointmentWithUser = await Appointment.findById(appointmentId)
           .populate('formId')
           .lean();
         
-        // ✅ Add user info for frontend with fallback data
+        // Add user info for frontend
         if (appointmentWithUser.formData || appointmentWithUser.formId) {
           const formInfo = appointmentWithUser.formData || appointmentWithUser.formId;
           appointmentWithUser.user = {
@@ -815,7 +822,6 @@ Email: ${process.env.SES_SENDER_EMAIL}`;
             phoneNumber: formInfo.phoneNumber || 'N/A'
           };
         } else {
-          // Fallback user info
           appointmentWithUser.user = {
             firstName: userName.split(' ')[0] || 'N/A',
             lastName: userName.split(' ')[1] || 'N/A',
@@ -824,31 +830,22 @@ Email: ${process.env.SES_SENDER_EMAIL}`;
           };
         }
         
-        // ✅ Ensure correct status and preserve original time slot
-        appointmentWithUser.status = 'contacted';
-        appointmentWithUser.lastContactDate = updatedAppointment.lastContactDate;
-        appointmentWithUser.contactMethod = updatedAppointment.contactMethod;
-        appointmentWithUser.contactedBy = updatedAppointment.contactedBy;
-        
-        // ✅ Emit to all clients and admin room with specific event
+        // ✅ Emit to all clients and admin room
         req.io.emit('updateAppointment', appointmentWithUser);
         req.io.to('admins').emit('updateAppointment', appointmentWithUser);
-        console.log('✅ WebSocket update event emitted for contacted appointment:', appointmentId);
+        console.log(`✅ WebSocket update emitted for contacted appointment: ${appointmentId}`);
       } catch (wsError) {
         console.error('❌ WebSocket emission failed:', wsError);
-        // Don't fail the request if WebSocket fails
       }
-    } else {
-      console.warn('⚠️  req.io is not available - WebSocket not emitted');
     }
 
-    // ✅ FIX 5: Return success response with only contacted status data
+    // ✅ FIX 6: Return success response
     res.status(200).json({
       success: true,
       message: 'Scheduler link sent successfully',
       appointment: {
         _id: updatedAppointment._id,
-        status: 'contacted', // ✅ Explicitly return contacted status
+        status: 'contacted',
         lastContactDate: updatedAppointment.lastContactDate,
         contactMethod: updatedAppointment.contactMethod,
         contactedBy: updatedAppointment.contactedBy,
@@ -880,6 +877,285 @@ Email: ${process.env.SES_SENDER_EMAIL}`;
     });
   }
 });
+
+
+// const contactUserByEmail = asyncHandler(async (req, res) => {
+//   try {
+//     const { 
+//       appointmentId, 
+//       userEmail, 
+//       userName, 
+//       subject, 
+//       message,
+//       adminName,
+//       contactMethod = 'email'
+//     } = req.body;
+
+//     // Validation
+//     if (!appointmentId || !userEmail || !userName) {
+//       return res.status(400).json({ 
+//         success: false,
+//         error: 'Missing required fields: appointmentId, userEmail, userName' 
+//       });
+//     }
+
+//     if (!isValidEmail(userEmail)) {
+//       return res.status(400).json({success: false, error: 'Invalid email format' });
+//     }
+
+//     // ✅ FIX 1: Find the appointment and validate its current status
+//     const appointment = await Appointment.findById(appointmentId);
+//     if (!appointment) {
+//       return res.status(404).json({ success: false, error: 'Appointment not found' });
+//     }
+
+//     // ✅ FIX 2: Prevent sending emails to appointments that are already contacted/booked
+//     if (appointment.status === 'contacted' && appointment.lastContactDate) {
+//       const timeSinceLastContact = new Date() - new Date(appointment.lastContactDate);
+//       const oneHour = 60 * 60 * 1000;
+      
+//       if (timeSinceLastContact < oneHour) {
+//         return res.status(400).json({ 
+//           success: false, 
+//           error: 'Scheduler link was already sent recently. Please wait before resending.' 
+//         });
+//       }
+//     }
+
+//     // ✅ Generate unique scheduler link with appointment-specific parameters
+//     const schedulerLink = generatePrefillUrl(
+//       process.env.ZOOM_URL, 
+//       appointmentId, {
+//        firstName: userName.split(' ')[0],
+//        lastName: userName.split(' ')[1] || '',
+//        email: userEmail,
+//        // ✅ Add unique identifier to prevent cross-contamination
+//        appointmentRef: appointmentId
+//      });
+
+//     // Get form details only for termForm
+//     let formData = null;
+//     if (appointment.formType === 'termForm' && appointment.formId) {
+//       formData = await Tform.findById(appointment.formId);
+//     }
+    
+//     // Default subject and message
+//     const emailSubject = subject || `Schedule Your Financial Consultation - LyfNest Solutions`;
+    
+//     const defaultMessage = `Hi ${userName},
+
+// Thank you for submitting your request! I'm following up to schedule your financial consultation.
+
+// Please use the link below to pick a time that works best for you:
+// ${schedulerLink}
+
+// ${formData ? `Based on your submitted information:
+// ${formData.coverageAmount ? `• Coverage Amount: ${formData.coverageAmount}\n` : ''}
+// ${formData.preferredTerm ? `• Preferred Term: ${formData.preferredTerm}\n` : ''}
+// ` : ''}
+
+// Once you schedule your preferred time, I'll receive a notification and we'll be all set for our meeting.
+
+// Best regards,
+// ${adminName || 'LyfNest Solutions Team'}
+// Email: ${process.env.SES_SENDER_EMAIL}`;
+
+//     const emailMessage = message || defaultMessage;
+
+//     // Send email with scheduler link
+//     const params = {
+//       Destination: { ToAddresses: [userEmail] },
+//       Message: {
+//         Body: {
+//           Html: {
+//             Charset: "UTF-8",
+//             Data: `
+//               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+//                 <div style="background: #a4dcd7; color: white; padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+//                   <img src="https://res.cloudinary.com/dma2ht84k/image/upload/v1753279441/lyfnest-logo_byfywb.png" alt="LyfNest Solutions Logo" style="width: 50px; height: 50px; margin-bottom: 10px;">
+//                   <h2 style="margin: 0;">Schedule Your Consultation</h2>
+//                 </div>
+              
+//                 <div style="background: #ffffff; padding: 30px; border: 1px solid #e0e0e0; border-top: none;">
+//                   <div style="white-space: pre-line; line-height: 1.6; color: #333;">
+//                     ${emailMessage.replace(/\n/g, '<br>')}
+//                   </div>
+                  
+//                   <div style="text-align: center; margin: 30px 0;">
+//                     <a href="${schedulerLink}" 
+//                        style="background: #4caf50; 
+//                               color: white; 
+//                               padding: 15px 30px; 
+//                               text-decoration: none; 
+//                               border-radius: 5px;
+//                               font-weight: bold;
+//                               font-size: 16px;
+//                               display: inline-block;">
+//                       📅 Schedule My Meeting
+//                     </a>
+//                   </div>
+                  
+//                   ${formData ? `
+//                   <div style="background: #f8f9fa; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #4caf50;">
+//                     <h3 style="color: #2e7d32; margin-top: 0;">Your Inquiry Details:</h3>
+//                     <ul style="color: #555; margin: 10px 0;">
+//                       ${formData.coverageAmount ? `<li><strong>Coverage Amount:</strong> ${formData.coverageAmount}</li>` : ''}
+//                       ${formData.preferredTerm ? `<li><strong>Preferred Term:</strong> ${formData.preferredTerm}</li>` : ''}
+//                       ${formData.phoneNumber ? `<li><strong>Phone:</strong> ${formData.phoneNumber}</li>` : ''}
+//                     </ul>
+//                   </div>
+//                   ` : ''}
+                  
+//                   <div style="background: #e3f2fd; padding: 15px; border-radius: 5px; margin-top: 20px;">
+//                     <p style="margin: 0; color: #1976d2; font-size: 14px;">
+//                       <strong>📝 Note:</strong> After you schedule, I'll receive an automatic notification with your chosen time and will prepare for our meeting accordingly.
+//                     </p>
+//                   </div>
+//                 </div>
+                
+//                 <div style="background: #f5f5f5; padding: 20px; text-align: center; border-radius: 0 0 10px 10px;">
+//                   <p style="margin: 0; color: #666; font-size: 14px;">
+//                     <strong>LyfNest Solutions</strong><br>
+//                     Email: ${process.env.SES_SENDER_EMAIL}
+//                   </p>
+//                 </div>
+//               </div>
+//             `
+//           },
+//           Text: {
+//             Charset: "UTF-8",
+//             Data: `${emailMessage}\n\nSchedule your meeting: ${schedulerLink}`
+//           }
+//         },
+//         Subject: {
+//           Charset: "UTF-8",
+//           Data: emailSubject
+//         }
+//       },
+//       Source: process.env.SES_SENDER_EMAIL
+//     };
+
+//     // Send the email
+//     let emailSent = false;
+//     try {
+//       await sesClient.send(new SendEmailCommand(params));
+//       console.log('✅ Email sent successfully to:', userEmail);
+//       emailSent = true;
+//     } catch (emailError) {
+//       console.error('❌ Email sending failed:', emailError);
+//       return res.status(500).json({ 
+//         success: false,
+//         message: 'Failed to send scheduler email',
+//         error: emailError.message 
+//       });
+//     }
+
+//     // ✅ FIX 3: Update appointment status to 'contacted' with precise data
+//     const updatedAppointment = await Appointment.findByIdAndUpdate(
+//       appointmentId,
+//       {
+//         status: 'contacted', // ✅ Ensure status is exactly 'contacted'
+//         lastContactDate: new Date(),
+//         contactMethod: contactMethod,
+//         contactedBy: adminName || 'Admin',
+//         // ✅ IMPORTANT: Don't change assignedSlot here - preserve original slot
+//         lastUpdated: new Date()
+//       },
+//       { new: true, runValidators: true }
+//     );
+
+//     if (!updatedAppointment) {
+//       console.error('❌ Failed to update appointment status');
+//       return res.status(500).json({ 
+//         success: false,
+//         message: 'Email sent but failed to update appointment status'
+//       });
+//     }
+
+//     console.log('✅ Appointment status updated to contacted:', updatedAppointment._id);
+
+//     // ✅ FIX 4: Emit WebSocket update with precise data
+//     if (req.io && updatedAppointment) {
+//       try {
+//         const appointmentWithUser = await Appointment.findById(appointmentId)
+//           .populate('formId')
+//           .lean();
+        
+//         // ✅ Add user info for frontend with fallback data
+//         if (appointmentWithUser.formData || appointmentWithUser.formId) {
+//           const formInfo = appointmentWithUser.formData || appointmentWithUser.formId;
+//           appointmentWithUser.user = {
+//             firstName: formInfo.firstName || userName.split(' ')[0] || 'N/A',
+//             lastName: formInfo.lastName || userName.split(' ')[1] || 'N/A',
+//             email: formInfo.Email || formInfo.email || userEmail || 'N/A',
+//             phoneNumber: formInfo.phoneNumber || 'N/A'
+//           };
+//         } else {
+//           // Fallback user info
+//           appointmentWithUser.user = {
+//             firstName: userName.split(' ')[0] || 'N/A',
+//             lastName: userName.split(' ')[1] || 'N/A',
+//             email: userEmail || 'N/A',
+//             phoneNumber: 'N/A'
+//           };
+//         }
+        
+//         // ✅ Ensure correct status and preserve original time slot
+//         appointmentWithUser.status = 'contacted';
+//         appointmentWithUser.lastContactDate = updatedAppointment.lastContactDate;
+//         appointmentWithUser.contactMethod = updatedAppointment.contactMethod;
+//         appointmentWithUser.contactedBy = updatedAppointment.contactedBy;
+        
+//         // ✅ Emit to all clients and admin room with specific event
+//         req.io.emit('updateAppointment', appointmentWithUser);
+//         req.io.to('admins').emit('updateAppointment', appointmentWithUser);
+//         console.log('✅ WebSocket update event emitted for contacted appointment:', appointmentId);
+//       } catch (wsError) {
+//         console.error('❌ WebSocket emission failed:', wsError);
+//         // Don't fail the request if WebSocket fails
+//       }
+//     } else {
+//       console.warn('⚠️  req.io is not available - WebSocket not emitted');
+//     }
+
+//     // ✅ FIX 5: Return success response with only contacted status data
+//     res.status(200).json({
+//       success: true,
+//       message: 'Scheduler link sent successfully',
+//       appointment: {
+//         _id: updatedAppointment._id,
+//         status: 'contacted', // ✅ Explicitly return contacted status
+//         lastContactDate: updatedAppointment.lastContactDate,
+//         contactMethod: updatedAppointment.contactMethod,
+//         contactedBy: updatedAppointment.contactedBy,
+//         assignedSlot: updatedAppointment.assignedSlot, // ✅ Original slot preserved
+//         formType: updatedAppointment.formType,
+//         formData: updatedAppointment.formData,
+//         user: {
+//           firstName: userName.split(' ')[0] || 'N/A',
+//           lastName: userName.split(' ')[1] || 'N/A',
+//           email: userEmail,
+//           phoneNumber: formData?.phoneNumber || 'N/A'
+//         }
+//       },
+//       appointmentId,
+//       contactMethod: 'email',
+//       sentAt: new Date(),
+//       recipient: userEmail,
+//       schedulerLink: schedulerLink,
+//       emailSent: emailSent,
+//       statusUpdated: true
+//     });
+
+//   } catch (error) {
+//     console.error("❌ Contact Email Error:", error);
+//     res.status(500).json({ 
+//       success: false,
+//       message: 'Failed to send contact email',
+//       error: error.message 
+//     });
+//   }
+// });
 
 
 // const contactUserByEmail = asyncHandler(async (req, res) => {
