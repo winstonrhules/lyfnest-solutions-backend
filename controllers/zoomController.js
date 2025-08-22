@@ -607,7 +607,7 @@ const manualSync = async (req, res) => {
 };
 
 const deleteZoomMeeting = async (req, res) => {
-  try {
+  try { 
     const { appointmentId } = req.params;
     
     // Find the appointment with zoom meeting
