@@ -649,7 +649,7 @@ const contactUserByEmail = asyncHandler(async (req, res) => {
     // ✅ Generate unique scheduler link with appointment-specific parameters
     const schedulerLink = generatePrefillUrl(
       process.env.ZOOM_URL, 
-      appointmentId, {
+      appointmentId, {  
        firstName: userName.split(' ')[0],
        lastName: userName.split(' ')[1] || '',
        email: userEmail,

@@ -1009,6 +1009,7 @@ const syncZoomMeetings = async () => {
             
             appointmentWithUser.zoomMeeting = newZoomMeeting;
             appointmentWithUser.assignedSlot = meetingStartTime; // ✅ Ensure correct time
+            appointmentWithUser.status = 'booked'; // Ensure status is current
             
             global.io.emit('updateAppointment', appointmentWithUser);
             console.log('✅ Zoom sync - New booking WebSocket update emitted for appointment:', matchedAppointment._id);
