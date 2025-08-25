@@ -1,4 +1,3 @@
-
 const asyncHandler = require('express-async-handler');
 const Appointment = require('../models/appointmentModels');
 const Form = require('../models/formModels');
@@ -9,23 +8,62 @@ const Wform = require('../models/wformModels');
 const Notification = require('../models/notificationModels');
 
 // ✅ HELPER FUNCTION TO ADD USER INFO TO APPOINTMENT
+// const populateAppointmentWithUser = async (appointment) => {
+//   if (appointment.isContactList && appointment.formData) return appointment;
+  
+//   if(appointment.formData){
+//   return {
+//     ...appointment,
+//     user: {
+//       firstName: appointment.formData.firstName || 'N/A',
+//       lastName: appointment.formData.lastName || 'N/A',
+//       email: appointment.formData.Email || appointment.formData.email || 'N/A',
+//       phoneNumber: appointment.formData.phoneNumber || 'N/A',
+//       Dob:appointment.formData.Dob|| null
+//     }
+//   };
+// }
+// return appointment;
+// };
+
 const populateAppointmentWithUser = async (appointment) => {
   if (appointment.isContactList && appointment.formData) return appointment;
   
-  if(appointment.formData){
-  return {
-    ...appointment,
-    user: {
-      firstName: appointment.formData.firstName || 'N/A',
-      lastName: appointment.formData.lastName || 'N/A',
-      email: appointment.formData.Email || appointment.formData.email || 'N/A',
-      phoneNumber: appointment.formData.phoneNumber || 'N/A',
-      Dob:appointment.formData.Dob|| null
-    }
-  };
-}
-return appointment;
+  if (appointment.formData) {
+    return {
+      ...appointment,
+      user: {
+        firstName: appointment.formData.firstName || 'N/A',
+        lastName: appointment.formData.lastName || 'N/A',
+        email: appointment.formData.Email || appointment.formData.email || 'N/A',
+        phoneNumber: appointment.formData.phoneNumber || 'N/A',
+        Dob: appointment.formData.Dob || null
+      },
+      // ✅ ENSURE: assignedSlot is preserved as-is from database
+      assignedSlot: appointment.assignedSlot
+    };
+  }
+  return appointment;
 };
+
+const populateAppointmentForWebSocket = async (appointment) => {
+  const populatedAppointment = appointment.toObject ? appointment.toObject() : appointment;
+  
+  // Add user info if not present
+  if (!populatedAppointment.user && populatedAppointment.formData) {
+    populatedAppointment.user = {
+      firstName: populatedAppointment.formData.firstName || 'N/A',
+      lastName: populatedAppointment.formData.lastName || 'N/A',
+      email: populatedAppointment.formData.Email || populatedAppointment.formData.email || 'N/A',
+      phoneNumber: populatedAppointment.formData.phoneNumber || 'N/A',
+      Dob: populatedAppointment.formData.Dob || null
+    };
+  }
+  
+  return populatedAppointment;
+};
+
+
 
 // ✅ GET ALL APPOINTMENTS
 const getAppointments = asyncHandler(async (req, res) => {
@@ -48,7 +86,6 @@ const getAppointments = asyncHandler(async (req, res) => {
   }
 });
 
-// ✅ UPDATE APPOINTMENT STATUS
 const updateAppointmentStatus = asyncHandler(async (req, res) => {
   try {
     const { status, zoomMeetingId } = req.body;
@@ -90,13 +127,19 @@ const updateAppointmentStatus = asyncHandler(async (req, res) => {
       return res.status(404).json({ error: 'Failed to update appointment' });
     }
 
-    // Add user info for frontend
+    // ✅ IMPROVED: Add user info for frontend using the helper function
     const appointmentWithUser = await populateAppointmentWithUser(updatedAppointment);
 
-    // ✅ EMIT WEBSOCKET UPDATE
+    // ✅ EMIT WEBSOCKET UPDATE with proper data
     if (req.io) {
-      req.io.emit('updateAppointment', appointmentWithUser);
-      console.log(`✅ WebSocket update emitted for appointment ${appointmentId}`);
+      const websocketData = await populateAppointmentForWebSocket(appointmentWithUser);
+      if (websocketData) {
+        req.io.emit('updateAppointment', websocketData);
+        console.log(`✅ WebSocket update emitted for appointment ${appointmentId}:`, {
+          status: websocketData.status,
+          assignedSlot: websocketData.assignedSlot
+        });
+      }
     }
 
     // Create notification
@@ -123,6 +166,83 @@ const updateAppointmentStatus = asyncHandler(async (req, res) => {
   }
 });
 
+
+
+// ✅ UPDATE APPOINTMENT STATUS
+// const updateAppointmentStatus = asyncHandler(async (req, res) => {
+//   try {
+//     const { status, zoomMeetingId } = req.body;
+//     const appointmentId = req.params.id;
+
+//     console.log(`🔄 Updating appointment ${appointmentId} status to: ${status}`);
+
+//     const appointment = await Appointment.findById(appointmentId);
+//     if (!appointment) {
+//       return res.status(404).json({ error: 'Appointment not found' });
+//     }
+
+//     // Update fields based on status  
+//     const updateData = { lastUpdated: new Date() }; 
+
+//     if (status === 'contacted') {
+//       updateData.status = 'contacted';  
+//       updateData.lastContactDate = new Date();
+//     } else if (status === 'booked') {
+//       updateData.status = 'booked';
+//       if (zoomMeetingId) {  
+//         updateData.zoomMeetingId = zoomMeetingId;
+//       }
+//     } else if (status === 'completed') {
+//       updateData.status = 'completed';
+//     } else if (status === 'missed') {
+//       updateData.status = 'missed';
+//     } else if (status) {
+//       updateData.status = status;
+//     }
+
+//     const updatedAppointment = await Appointment.findByIdAndUpdate(
+//       appointmentId,
+//       updateData,
+//       { new: true, runValidators: true }
+//     ).lean();
+
+//     if (!updatedAppointment) {
+//       return res.status(404).json({ error: 'Failed to update appointment' });
+//     }
+
+//     // Add user info for frontend
+//     const appointmentWithUser = await populateAppointmentWithUser(updatedAppointment);
+
+//     // ✅ EMIT WEBSOCKET UPDATE
+//     if (req.io) {
+//       req.io.emit('updateAppointment', appointmentWithUser);
+//       console.log(`✅ WebSocket update emitted for appointment ${appointmentId}`);
+//     }
+
+//     // Create notification
+//     await Notification.create({
+//       message: `Appointment status updated to ${status} for ${appointmentWithUser.user?.firstName} ${appointmentWithUser.user?.lastName}`,
+//       formType: updatedAppointment.formType || 'appointment',
+//       read: false,
+//       appointmentId: appointmentId
+//     });
+
+//     res.status(200).json({
+//       success: true,
+//       appointment: appointmentWithUser,
+//       message: `Appointment status updated to ${status}`
+//     });
+
+//   } catch (error) {
+//     console.error('❌ Update appointment status error:', error);
+//     res.status(500).json({ 
+//       success: false,
+//       error: 'Failed to update appointment status',
+//       details: error.message 
+//     });
+//   }
+// });
+
 // ✅ RESCHEDULE APPOINTMENT
 const rescheduleAppointment = asyncHandler(async (req, res) => {
   try {
@@ -136,36 +256,22 @@ const rescheduleAppointment = asyncHandler(async (req, res) => {
       return res.status(404).json({ error: 'Appointment not found' });
     }
 
-     const localDate = new Date(assignedSlot);
-    const utcDate = new Date(localDate.getTime() - localDate.getTimezoneOffset() * 60000); // ✅ Normalize UTC
+    const newSlotDate = new Date(assignedSlot);
+    const now = new Date();
 
-    if (utcDate < new Date()) {
+    if (newSlotDate < now) {
       return res.status(400).json({ error: 'Cannot schedule in the past' });
     }
 
+    // Update appointment with new time
     const updatedAppointment = await Appointment.findByIdAndUpdate(
       appointmentId,
-      { assignedSlot: utcDate, lastUpdated: new Date() },
+      {
+        assignedSlot: newSlotDate,
+        lastUpdated: new Date()
+      },
       { new: true, runValidators: true }
     ).lean();
-
-
-    // const newSlotDate = new Date(assignedSlot);
-    // const now = new Date();
-
-    // if (newSlotDate < now) {
-    //   return res.status(400).json({ error: 'Cannot schedule in the past' });
-    // }
-
-    // // Update appointment with new time
-    // const updatedAppointment = await Appointment.findByIdAndUpdate(
-    //   appointmentId,
-    //   {
-    //     assignedSlot: newSlotDate,
-    //     lastUpdated: new Date()
-    //   },
-    //   { new: true, runValidators: true }
-    // ).lean();
 
     // Add user info
     const appointmentWithUser = await populateAppointmentWithUser(updatedAppointment);
@@ -199,8 +305,6 @@ const rescheduleAppointment = asyncHandler(async (req, res) => {
     });
   }
 });
-
-
 
 // ✅ DELETE APPOINTMENT
 const deleteAppointment = asyncHandler(async (req, res) => {
@@ -254,16 +358,8 @@ const createAppointment = asyncHandler(async (req, res) => {
   try {
     console.log('📝 Creating new appointment:', req.body);
 
-     let assignedSlot = null;
-    if (req.body.assignedSlot) {
-      const localDate = new Date(req.body.assignedSlot);
-      assignedSlot = new Date(localDate.getTime() - localDate.getTimezoneOffset() * 60000); // ✅ Normalize UTC
-    }
-
-
     const appointmentData = {
       ...req.body,
-      assignedSlot,
       status: req.body.status || 'scheduled', // Default to scheduled
       createdAt: new Date(),
       lastUpdated: new Date()
@@ -309,8 +405,4 @@ module.exports = {
   deleteAppointment,
   createAppointment
 };
-
-
-
-
 
