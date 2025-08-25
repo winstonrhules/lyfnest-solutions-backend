@@ -136,22 +136,36 @@ const rescheduleAppointment = asyncHandler(async (req, res) => {
       return res.status(404).json({ error: 'Appointment not found' });
     }
 
-    const newSlotDate = new Date(assignedSlot);
-    const now = new Date();
+     const localDate = new Date(assignedSlot);
+    const utcDate = new Date(localDate.getTime() - localDate.getTimezoneOffset() * 60000); // ✅ Normalize UTC
 
-    if (newSlotDate < now) {
+    if (utcDate < new Date()) {
       return res.status(400).json({ error: 'Cannot schedule in the past' });
     }
 
-    // Update appointment with new time
     const updatedAppointment = await Appointment.findByIdAndUpdate(
       appointmentId,
-      {
-        assignedSlot: newSlotDate,
-        lastUpdated: new Date()
-      },
+      { assignedSlot: utcDate, lastUpdated: new Date() },
       { new: true, runValidators: true }
     ).lean();
+
+
+    // const newSlotDate = new Date(assignedSlot);
+    // const now = new Date();
+
+    // if (newSlotDate < now) {
+    //   return res.status(400).json({ error: 'Cannot schedule in the past' });
+    // }
+
+    // // Update appointment with new time
+    // const updatedAppointment = await Appointment.findByIdAndUpdate(
+    //   appointmentId,
+    //   {
+    //     assignedSlot: newSlotDate,
+    //     lastUpdated: new Date()
+    //   },
+    //   { new: true, runValidators: true }
+    // ).lean();
 
     // Add user info
     const appointmentWithUser = await populateAppointmentWithUser(updatedAppointment);
@@ -185,6 +199,8 @@ const rescheduleAppointment = asyncHandler(async (req, res) => {
     });
   }
 });
+
+
 
 // ✅ DELETE APPOINTMENT
 const deleteAppointment = asyncHandler(async (req, res) => {
@@ -238,8 +254,16 @@ const createAppointment = asyncHandler(async (req, res) => {
   try {
     console.log('📝 Creating new appointment:', req.body);
 
+     let assignedSlot = null;
+    if (req.body.assignedSlot) {
+      const localDate = new Date(req.body.assignedSlot);
+      assignedSlot = new Date(localDate.getTime() - localDate.getTimezoneOffset() * 60000); // ✅ Normalize UTC
+    }
+
+
     const appointmentData = {
       ...req.body,
+      assignedSlot,
       status: req.body.status || 'scheduled', // Default to scheduled
       createdAt: new Date(),
       lastUpdated: new Date()
@@ -285,4 +309,8 @@ module.exports = {
   deleteAppointment,
   createAppointment
 };
+
+
+
+
 

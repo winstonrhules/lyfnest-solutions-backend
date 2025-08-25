@@ -157,7 +157,7 @@ const syncZoomMeetings = async () => {
                 contactWindowStart: meetingStartTime,
                 contactWindowEnd: meetingEndTime,
                 lastUpdated: new Date()
-              },
+              },  
               { runValidators: true, new: true }
             );
             
@@ -247,7 +247,7 @@ const syncZoomMeetings = async () => {
 
           await newZoomMeeting.save();
           
-          // Link the zoom meeting to appointment
+          // Link the zoom meeting to appointment  
           await Appointment.findByIdAndUpdate(
             matchedAppointment._id,
             { zoomMeeting: newZoomMeeting._id },
