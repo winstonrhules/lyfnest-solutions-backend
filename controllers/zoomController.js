@@ -329,7 +329,7 @@ const syncZoomMeetings = async () => {
             syncedAt: new Date(),
             originalStartTime: meeting.start_time, // Store original for debugging
             parsedStartTime: meetingStartTime.toISOString()
-          });
+          }); 
 
           await newZoomMeeting.save();
           
