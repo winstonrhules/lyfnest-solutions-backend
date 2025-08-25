@@ -1028,53 +1028,16 @@ const generatePrefillUrl = (baseUrl, appointmentId, user) => {
 const scheduleAppointment = async () => {
   try {
     const now = new Date();
-    
-    // ✅ FIX: Create appointment slots for TODAY, not 24-48 hours later
-    // If it's late in the day, schedule for tomorrow, otherwise today
-    const currentHour = now.getHours();
-    const isAfterBusinessHours = currentHour >= 17; // After 5 PM
-    
-    let baseDate;
-    if (isAfterBusinessHours) {
-      // If after business hours, schedule for tomorrow
-      baseDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1);
-    } else {
-      // Schedule for today
-      baseDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-    }
-    
-    console.log('📅 Scheduling appointment:', {
-      currentTime: now.toString(),
-      currentHour,
-      isAfterBusinessHours,
-      baseDate: baseDate.toString(),
-      baseDateLocal: baseDate.toLocaleDateString()
-    });
 
-    // ✅ FIX: Set contact window to business hours on the selected date
-    const contactWindowStart = new Date(baseDate);
-    contactWindowStart.setHours(9, 0, 0, 0); // 9:00 AM local time
-    
-    const contactWindowEnd = new Date(baseDate);
-    contactWindowEnd.setHours(17, 0, 0, 0); // 5:00 PM local time
+    // Set a stable starting point for scheduling
+    const contactWindowStart = new Date(now.getTime() + CONTACT_WINDOW_START * 60 * 60 * 1000);
+    const contactWindowEnd = new Date(now.getTime() + CONTACT_WINDOW_END * 60 * 60 * 1000);
 
-    // Query for existing appointments on the same day
-    const startOfDay = new Date(baseDate);
-    startOfDay.setHours(0, 0, 0, 0);
-    
-    const endOfDay = new Date(baseDate);
-    endOfDay.setHours(23, 59, 59, 999);
-    
+    // Query for ALL future appointments to avoid conflicts
     const existingAppointments = await Appointment.find({
-      assignedSlot: { 
-        $gte: startOfDay,
-        $lte: endOfDay
-      }
+      assignedSlot: { $gte: now }
     }).sort({ assignedSlot: 1 });
 
-    console.log('📋 Found existing appointments for the day:', existingAppointments.length);
-
-    // Generate available slots
     const slots = [];
     let currentSlot = new Date(contactWindowStart);
 
@@ -1085,164 +1048,42 @@ const scheduleAppointment = async () => {
 
     let assignedSlot = null;
 
-    // Find the first available slot
+    // Find the first slot that is not taken
     for (const slot of slots) {
-      const slotTaken = existingAppointments.some(app => {
-        const appSlot = new Date(app.assignedSlot);
-        return Math.abs(appSlot.getTime() - slot.getTime()) < (SLOT_DURATION * 60 * 1000);
-      });
-      
+      const slotTaken = existingAppointments.some(app =>
+        app.assignedSlot.getTime() === slot.getTime()
+      );
       if (!slotTaken) {
         assignedSlot = slot;
         break;
       }
     }
 
-    // If all slots are taken, default to 10:00 AM on the next available day
+    // If all slots are taken, fall back to the end of the window
     if (!assignedSlot) {
-      const nextDay = new Date(baseDate);
-      nextDay.setDate(nextDay.getDate() + 1);
-      nextDay.setHours(10, 0, 0, 0); // 10:00 AM next day
-      assignedSlot = nextDay;
-      
-      // Update contact window for next day
-      contactWindowStart.setDate(contactWindowStart.getDate() + 1);
-      contactWindowEnd.setDate(contactWindowEnd.getDate() + 1);
+      assignedSlot = contactWindowEnd;
     }
-
-    console.log('✅ Appointment scheduled:', {
-      assignedSlot: assignedSlot.toString(),
-      assignedSlotLocal: assignedSlot.toLocaleDateString(),
-      assignedSlotISO: assignedSlot.toISOString(),
-      contactWindowStart: contactWindowStart.toString(),
-      contactWindowEnd: contactWindowEnd.toString()
-    });
 
     return {
       contactWindowStart,
       contactWindowEnd,
       assignedSlot
     };
-    
   } catch (error) {
     console.error("Scheduling Error:", error);
-    
-    // ✅ IMPROVED: Fallback creates appointment for today
+    // Fallback mechanism
     const now = new Date();
-    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 10, 0, 0); // 10:00 AM today
-    
-    const fallbackStart = new Date(today);
-    fallbackStart.setHours(9, 0, 0, 0);
-    
-    const fallbackEnd = new Date(today);
-    fallbackEnd.setHours(17, 0, 0, 0);
-    
-    console.log('⚠️ Using fallback scheduling:', {
-      assignedSlot: today.toString(),
-      contactWindowStart: fallbackStart.toString(),
-      contactWindowEnd: fallbackEnd.toString()
-    });
-    
+    const randomOffset = Math.floor(
+      Math.random() *
+      (CONTACT_WINDOW_END - CONTACT_WINDOW_START) * 60 * 60 * 1000
+    );
     return {
-      contactWindowStart: fallbackStart,
-      contactWindowEnd: fallbackEnd,
-      assignedSlot: today
+      contactWindowStart: new Date(now.getTime() + CONTACT_WINDOW_START * 60 * 60 * 1000),
+      contactWindowEnd: new Date(now.getTime() + CONTACT_WINDOW_END * 60 * 60 * 1000),
+      assignedSlot: new Date(now.getTime() + CONTACT_WINDOW_START * 60 * 60 * 1000 + randomOffset)
     };
   }
 };
-
-// ✅ ADD: Helper function to create appointment with proper user data
-const createAppointmentWithUser = async (formData, email, savedFormId) => {
-  const appointmentDetails = await scheduleAppointment();
-  
-  const appointmentData = {
-    formId: savedFormId,
-    formType: 'termForm',
-    formData: {
-      ...formData,
-      Email: email // Ensure email is included
-    },
-    contactWindowStart: appointmentDetails.contactWindowStart,
-    contactWindowEnd: appointmentDetails.contactWindowEnd,
-    assignedSlot: appointmentDetails.assignedSlot,
-    initialSlot: appointmentDetails.assignedSlot,
-    policyType: 'Term',
-    status: 'scheduled',
-    createdAt: new Date(),
-    lastUpdated: new Date()
-  };
-  
-  console.log('📝 Creating appointment:', {
-    assignedSlot: appointmentData.assignedSlot.toString(),
-    assignedSlotISO: appointmentData.assignedSlot.toISOString(),
-    formType: appointmentData.formType,
-    status: appointmentData.status
-  });
-  
-  return await Appointment.create(appointmentData);
-};
-
-
-
-// const scheduleAppointment = async () => {
-//   try {
-//     const now = new Date();
-
-//     // Set a stable starting point for scheduling
-//     const contactWindowStart = new Date(now.getTime() + CONTACT_WINDOW_START * 60 * 60 * 1000);
-//     const contactWindowEnd = new Date(now.getTime() + CONTACT_WINDOW_END * 60 * 60 * 1000);
-
-//     // Query for ALL future appointments to avoid conflicts
-//     const existingAppointments = await Appointment.find({
-//       assignedSlot: { $gte: now }
-//     }).sort({ assignedSlot: 1 });
-
-//     const slots = [];
-//     let currentSlot = new Date(contactWindowStart);
-
-//     while (currentSlot < contactWindowEnd) {
-//       slots.push(new Date(currentSlot));
-//       currentSlot = new Date(currentSlot.getTime() + SLOT_DURATION * 60 * 1000);
-//     }
-
-//     let assignedSlot = null;
-
-//     // Find the first slot that is not taken
-//     for (const slot of slots) {
-//       const slotTaken = existingAppointments.some(app =>
-//         app.assignedSlot.getTime() === slot.getTime()
-//       );
-//       if (!slotTaken) {
-//         assignedSlot = slot;
-//         break;
-//       }
-//     }
-
-//     // If all slots are taken, fall back to the end of the window
-//     if (!assignedSlot) {
-//       assignedSlot = contactWindowEnd;
-//     }
-
-//     return {
-//       contactWindowStart,
-//       contactWindowEnd,
-//       assignedSlot
-//     };
-//   } catch (error) {
-//     console.error("Scheduling Error:", error);
-//     // Fallback mechanism
-//     const now = new Date();
-//     const randomOffset = Math.floor(
-//       Math.random() *
-//       (CONTACT_WINDOW_END - CONTACT_WINDOW_START) * 60 * 60 * 1000
-//     );
-//     return {
-//       contactWindowStart: new Date(now.getTime() + CONTACT_WINDOW_START * 60 * 60 * 1000),
-//       contactWindowEnd: new Date(now.getTime() + CONTACT_WINDOW_END * 60 * 60 * 1000),
-//       assignedSlot: new Date(now.getTime() + CONTACT_WINDOW_START * 60 * 60 * 1000 + randomOffset)
-//     };
-//   }
-// };
 
 // Phone verification initiation
 const initialVerificationChecks = asyncHandler(async (req, res) => {
@@ -1444,267 +1285,6 @@ const verifyEmailCode = asyncHandler(async (req, res) => {
 });
 
 // FORM SUBMISSION HANDLER
-// const submissionForm = asyncHandler(async (req, res) => {
-//   try {
-//     // Destructure with proper field names
-//     const { 
-//       verification: verificationId, 
-//       Email: email, 
-//       ...formData 
-//     } = req.body;
-
-//     // Validate inputs
-//     if (!isValidEmail(email)) {
-//       return res.status(400).json({ error: 'Invalid email format' });
-//     }
-
-//     if (!isE164Format(formData.phoneNumber)) {
-//       return res.status(400).json({ error: 'Invalid phone format' });
-//     }
-
-//     // Phone verification check
-//     const phoneVerification = await Verification.findById(verificationId);
-//     const phoneVerificationWindow = new Date(
-//       Date.now() - VERIFICATION_WINDOW_MINUTES * 60 * 1000
-//     );
-
-//     if (
-//       !phoneVerification ||
-//       phoneVerification.status !== 'verified' ||
-//       phoneVerification.verifiedAt < phoneVerificationWindow
-//     ) {
-//       return res.status(400).json({ error: 'Phone verification required or expired' });
-//     }
-
-//     const emailVerification = await EmailVerification.findOne({ email });
-//     if (!emailVerification) {
-//       return res.status(400).json({ error: 'Email verification not found' });
-//     }
-//     if (emailVerification.status !== 'verified') {
-//       return res.status(400).json({ error: 'Email not verified yet' });
-//     }
-//     if (emailVerification.verifiedAt < phoneVerificationWindow) {
-//       return res.status(400).json({ error: 'Email verification expired' });
-//     }
-
-//     // Age validation
-//     const dobDate = new Date(formData.Dob);
-//     if (isNaN(dobDate.getTime())) {
-//       return res.status(400).json({ error: 'Invalid date format' });
-//     }
-
-//     const cutoffDate = new Date();
-//     cutoffDate.setFullYear(cutoffDate.getFullYear() - 18);
-//     if (dobDate > cutoffDate) {
-//       return res.status(400).json({ error: "Must be at least 18 years old" });
-//     }
-
-//     // Save form with proper mapping
-//     const newTform = new Tform({
-//       ...formData,
-//       Dob: dobDate,
-//       verification: verificationId,
-//       verifiedAt: new Date(),
-//       Email: email,
-//       emailVerification: emailVerification._id
-//     });
-
-//     const savedForm = await newTform.save();
-
-
-//     const appointmentDetails = await scheduleAppointment();
-//     const newAppointment = new Appointment({
-//       formId: savedForm._id,
-//       formType: 'termForm',
-//       formData: req.body,
-//       contactWindowStart: appointmentDetails.contactWindowStart,
-//       contactWindowEnd: appointmentDetails.contactWindowEnd,
-//       assignedSlot: appointmentDetails.assignedSlot,
-//       initialSlot: appointmentDetails.assignedSlot,
-//       policyType: 'Term',
-//       status: 'scheduled' // ✅ SET INITIAL STATUS TO SCHEDULED
-//     });
-
-
-//     const savedAppointment = await newAppointment.save();
-
-//        if (req.io) {
-//       const appointmentWithUser = {
-//         ...savedAppointment.toObject(),
-//         user: {
-//           firstName: formData.firstName,
-//           lastName: formData.lastName,
-//           email: email,
-//           phoneNumber: formData.phoneNumber
-//         }
-//       };
-      
-//             req.io.emit('newAppointment', appointmentWithUser);
-//       console.log('✅ WebSocket event emitted IMMEDIATELY for new appointment:', savedAppointment._id);
-      
-//       // Also emit to a specific admin room if available
-//       req.io.to('admins').emit('newAppointment', appointmentWithUser);
-//     } else {
-//       console.warn('⚠️  req.io is not available - WebSocket not emitted');
-//     }
- 
-
-//     // Send confirmation email to user
-//     let userEmailSent = false;
-//     try {
-//       const userParams = {
-//         Destination: { ToAddresses: [email] },
-//         Message: {
-//           Body: {
-//             Html: {
-//               Charset: "UTF-8",
-//               Data:  `
-//                   <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-//                   <h2 style="color: #1a237e;">Submission Confirmed</h2>
-//                    <p>Thank you for submitting your form to <strong>LyfNest Solutions</strong>!</p>
-//                    <p>We've received your information and will contact you between 24-48 hours</p>
-//                   <div style="background: #f5f5f5; padding: 20px; margin: 20px 0;">
-//                   Contact our support team at <a href="mailto:${process.env.SES_SENDER_EMAIL}">${process.env.SES_SENDER_EMAIL}</a>
-//                   </div>
-//                   <p style="color: #616161;">
-//                     <strong>Please note:</strong>
-//                     <ul>
-//                       <li>This is an automated message - please do not reply</li>
-//                       <li>We'll contact you using your preferred method</li>
-//                     </ul>
-//                   </p>
-//                 </div>`
-//             },
-//             Text: {
-//               Charset: "UTF-8",
-//               Data: `Thank you for submitting your form to LyfNest Solutions!\n\nWe've received your information and will contact you within 24-48 hours.\n\nSecurity notice: Never share personal information via email.`,
-//             }
-//           },
-//           Subject: {
-//             Charset: "UTF-8",
-//             Data: "Form Submission Confirmation"
-//           }
-//         },
-//         Source: process.env.SES_SENDER_EMAIL
-//       };
-      
-//       await sesClient.send(new SendEmailCommand(userParams));
-//       userEmailSent = true;
-//     } catch (userMailError) {
-//       console.error("User Email Confirmation Failed", userMailError);
-//     }
-
-//     // Send notification to admins
-//     let adminAlertSent = false;
-//     try {
-//       const admins = await User.find({ role: "admin" }).select("email");
-//       if (admins.length > 0) {
-//         const adminEmails = admins.map(admin => admin.email);
-//         const formattedSlot = appointmentDetails.assignedSlot.toLocaleString('en-US', {
-//           weekday: 'short',
-//           month: 'short',
-//           day: 'numeric',
-//           hour: '2-digit',
-//           minute: '2-digit'
-//         });
-
-//         const adminParams = {
-//           Destination: { 
-//             ToAddresses: [process.env.SES_NO_REPLY_EMAIL],
-//             BccAddresses: adminEmails 
-//           },
-//           Message: {
-//             Body: {
-//               Html: {
-//                 Charset: "UTF-8",
-//                 Data: `  
-//                 <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-//                     <h2 style="color: #dc3545;">NEW TERM FORM SUBMISSION</h2>
-//                     <p><strong>User:</strong> ${formData.firstName} ${formData.lastName}</p>
-//                     <p><strong>Email:</strong> ${email}</p>
-//                     <p><strong>Submitted At:</strong> ${new Date().toLocaleString()}</p>
-//                                   <div style="background: #e9f7ef; padding: 15px; margin: 20px 0; border-left: 4px solid #28a745;">
-//                       <h3 style="color: #28a745; margin-top: 0;">Scheduled Contact Slot</h3>
-//                       <p style="margin: 5px 0;"><strong>Initial Time:</strong> ${formattedSlot}</p>
-//                       <p style="margin: 5px 0;"><strong>Contact Window:</strong><br>
-//                         ${appointmentDetails.contactWindowStart.toLocaleString()} to<br>
-//                         ${appointmentDetails.contactWindowEnd.toLocaleString()}
-//                       </p>
-//                     </div>
-//                     <div style="background: #f8d7da; padding: 15px; margin: 20px 0;">
-//                       <p style="margin: 0;">
-//                         A new term form submission has been received. Please review it in the admin panel.
-//                         <p style="background: #dc3545; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
-//                           REVIEW SUBMISSION
-//                         </p>
-//                       </p>
-//                     </div>
-//                     <p style="color: #6c757d;">
-//                       <strong>Quick Details:</strong>
-//                      <ul>
-//                     <li>Phone: ${formData.phoneNumber}</li>
-//                     <li>Preferred Term: ${formData.preferredTerm}</li>
-//                     <li>Coverage Amount: ${formData.coverageAmount}</li>
-//                     <li>Submission ID: ${newTform._id}</li>
-//                     <li>Appointment ID: ${newAppointment._id}</li>
-//                   </ul>
-//                     </p>
-//                   </div>`
-//               },
-//               Text: {
-//                 Charset: "UTF-8",
-//                 Data: `New term form submission from ${formData.firstName} ${formData.lastName} (${email})\n\nReview in admin panel.`
-//               }
-//             },
-//             Subject: {
-//               Charset: "UTF-8",
-//               Data: "🚨 New Term Form Submission"
-//             }
-//           },
-//           Source: process.env.SES_SENDER_EMAIL
-//         };
-        
-//         await sesClient.send(new SendEmailCommand(adminParams));
-//         adminAlertSent = true;
-//       }
-//     } catch (adminEmailError) {
-//       console.error('Admin Email failed', adminEmailError);
-//     }
-
-//     // Create notification
-//     try {
-//       const formattedSlot = appointmentDetails.assignedSlot.toLocaleTimeString([], {
-//         hour: '2-digit', 
-//         minute: '2-digit'
-//       });
-
-//       await Notification.create({
-//         message: `New term form submission from ${formData.firstName} ${formData.lastName} at ${formattedSlot}`,
-//         formType: 'termForm',
-//         read: false
-//       });
-//     } catch (notifError) {
-//       console.error("Notification Creation Failed:", notifError);
-//     }
-
-//         res.status(201).json({
-//       message: 'Term Life Insurance Form Submission Successful', 
-//       userEmail: userEmailSent,
-//       adminAlert: adminAlertSent,
-//       appointment: {
-//         id: savedAppointment._id,
-//         slot: appointmentDetails.assignedSlot,
-//         windowStart: appointmentDetails.contactWindowStart,
-//         windowEnd: appointmentDetails.contactWindowEnd,
-//         status: 'scheduled'
-//       },
-//     });
-
-//   } catch (error) {
-//     console.error("SUBMISSION FAILURE DETAILS:", error);
-//     res.status(500).json({ error: 'Form submission failed: ' + error.message }); 
-//   }
-// });
 const submissionForm = asyncHandler(async (req, res) => {
   try {
     // Destructure with proper field names
@@ -1772,100 +1352,78 @@ const submissionForm = asyncHandler(async (req, res) => {
 
     const savedForm = await newTform.save();
 
-    // ✅ FIXED: Create appointment using the new helper function
-    const savedAppointment = await createAppointmentWithUser(formData, email, savedForm._id);
 
-    console.log('✅ Form and appointment saved:', {
+    const appointmentDetails = await scheduleAppointment();
+    const newAppointment = new Appointment({
       formId: savedForm._id,
-      appointmentId: savedAppointment._id,
-      assignedSlot: savedAppointment.assignedSlot.toString(),
-      assignedSlotLocal: savedAppointment.assignedSlot.toLocaleDateString() + ' ' + savedAppointment.assignedSlot.toLocaleTimeString()
+      formType: 'termForm',
+      formData: req.body,
+      contactWindowStart: appointmentDetails.contactWindowStart,
+      contactWindowEnd: appointmentDetails.contactWindowEnd,
+      assignedSlot: appointmentDetails.assignedSlot,
+      initialSlot: appointmentDetails.assignedSlot,
+      policyType: 'Term',
+      status: 'scheduled' // ✅ SET INITIAL STATUS TO SCHEDULED
     });
 
-    // ✅ IMPROVED: WebSocket emission with proper user data
-    if (req.io) {
+
+    const savedAppointment = await newAppointment.save();
+
+       if (req.io) {
       const appointmentWithUser = {
         ...savedAppointment.toObject(),
         user: {
           firstName: formData.firstName,
           lastName: formData.lastName,
           email: email,
-          phoneNumber: formData.phoneNumber,
-          Dob: formData.Dob
+          phoneNumber: formData.phoneNumber
         }
       };
       
-      req.io.emit('newAppointment', appointmentWithUser);
-      console.log('✅ WebSocket event emitted for new appointment:', {
-        appointmentId: savedAppointment._id,
-        assignedSlot: appointmentWithUser.assignedSlot,
-        user: `${appointmentWithUser.user.firstName} ${appointmentWithUser.user.lastName}`
-      });
+            req.io.emit('newAppointment', appointmentWithUser);
+      console.log('✅ WebSocket event emitted IMMEDIATELY for new appointment:', savedAppointment._id);
       
-      // Also emit to admin room
+      // Also emit to a specific admin room if available
       req.io.to('admins').emit('newAppointment', appointmentWithUser);
     } else {
-      console.warn('⚠️ req.io is not available - WebSocket not emitted');
+      console.warn('⚠️  req.io is not available - WebSocket not emitted');
     }
-
-    // ✅ IMPROVED: Email notifications with correct date formatting
-    const appointmentDetails = {
-      contactWindowStart: savedAppointment.contactWindowStart,
-      contactWindowEnd: savedAppointment.contactWindowEnd,
-      assignedSlot: savedAppointment.assignedSlot
-    };
+ 
 
     // Send confirmation email to user
     let userEmailSent = false;
     try {
-      const formattedDate = savedAppointment.assignedSlot.toLocaleDateString('en-US', {
-        weekday: 'long',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric'
-      });
-
       const userParams = {
         Destination: { ToAddresses: [email] },
         Message: {
           Body: {
             Html: {
               Charset: "UTF-8",
-              Data: `
-                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+              Data:  `
+                  <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                   <h2 style="color: #1a237e;">Submission Confirmed</h2>
-                  <p>Thank you for submitting your form to <strong>LyfNest Solutions</strong>!</p>
-                  <p>We've received your information and you're scheduled for contact on:</p>
-                  <div style="background: #e3f2fd; padding: 20px; margin: 20px 0; border-radius: 8px;">
-                    <h3 style="color: #1976d2; margin-top: 0;">📅 Your Appointment</h3>
-                    <p style="font-size: 18px; font-weight: bold; color: #1976d2;">
-                      ${formattedDate}
-                    </p>
-                    <p style="color: #666; font-size: 14px;">
-                      We'll contact you between ${appointmentDetails.contactWindowStart.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} - ${appointmentDetails.contactWindowEnd.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </p>
-                  </div>
+                   <p>Thank you for submitting your form to <strong>LyfNest Solutions</strong>!</p>
+                   <p>We've received your information and will contact you between 24-48 hours</p>
                   <div style="background: #f5f5f5; padding: 20px; margin: 20px 0;">
-                    Contact our support team at <a href="mailto:${process.env.SES_SENDER_EMAIL}">${process.env.SES_SENDER_EMAIL}</a>
+                  Contact our support team at <a href="mailto:${process.env.SES_SENDER_EMAIL}">${process.env.SES_SENDER_EMAIL}</a>
                   </div>
                   <p style="color: #616161;">
                     <strong>Please note:</strong>
                     <ul>
                       <li>This is an automated message - please do not reply</li>
                       <li>We'll contact you using your preferred method</li>
-                      <li>Your information is secure and confidential</li>
                     </ul>
                   </p>
                 </div>`
             },
             Text: {
               Charset: "UTF-8",
-              Data: `Thank you for submitting your form to LyfNest Solutions!\n\nYou're scheduled for contact on ${formattedDate}.\n\nWe'll contact you between ${appointmentDetails.contactWindowStart.toLocaleTimeString()} - ${appointmentDetails.contactWindowEnd.toLocaleTimeString()}\n\nSecurity notice: Never share personal information via email.`,
+              Data: `Thank you for submitting your form to LyfNest Solutions!\n\nWe've received your information and will contact you within 24-48 hours.\n\nSecurity notice: Never share personal information via email.`,
             }
           },
           Subject: {
             Charset: "UTF-8",
-            Data: "Form Submission Confirmation - Appointment Scheduled"
+            Data: "Form Submission Confirmation"
           }
         },
         Source: process.env.SES_SENDER_EMAIL
@@ -1906,9 +1464,9 @@ const submissionForm = asyncHandler(async (req, res) => {
                     <p><strong>User:</strong> ${formData.firstName} ${formData.lastName}</p>
                     <p><strong>Email:</strong> ${email}</p>
                     <p><strong>Submitted At:</strong> ${new Date().toLocaleString()}</p>
-                    <div style="background: #e9f7ef; padding: 15px; margin: 20px 0; border-left: 4px solid #28a745;">
-                      <h3 style="color: #28a745; margin-top: 0;">📅 Scheduled Contact Slot</h3>
-                      <p style="margin: 5px 0;"><strong>Appointment Date:</strong> ${formattedSlot}</p>
+                                  <div style="background: #e9f7ef; padding: 15px; margin: 20px 0; border-left: 4px solid #28a745;">
+                      <h3 style="color: #28a745; margin-top: 0;">Scheduled Contact Slot</h3>
+                      <p style="margin: 5px 0;"><strong>Initial Time:</strong> ${formattedSlot}</p>
                       <p style="margin: 5px 0;"><strong>Contact Window:</strong><br>
                         ${appointmentDetails.contactWindowStart.toLocaleString()} to<br>
                         ${appointmentDetails.contactWindowEnd.toLocaleString()}
@@ -1929,14 +1487,14 @@ const submissionForm = asyncHandler(async (req, res) => {
                     <li>Preferred Term: ${formData.preferredTerm}</li>
                     <li>Coverage Amount: ${formData.coverageAmount}</li>
                     <li>Submission ID: ${newTform._id}</li>
-                    <li>Appointment ID: ${savedAppointment._id}</li>
+                    <li>Appointment ID: ${newAppointment._id}</li>
                   </ul>
                     </p>
                   </div>`
               },
               Text: {
                 Charset: "UTF-8",
-                Data: `New term form submission from ${formData.firstName} ${formData.lastName} (${email})\n\nScheduled for: ${formattedSlot}\n\nReview in admin panel.`
+                Data: `New term form submission from ${formData.firstName} ${formData.lastName} (${email})\n\nReview in admin panel.`
               }
             },
             Subject: {
@@ -1956,40 +1514,31 @@ const submissionForm = asyncHandler(async (req, res) => {
 
     // Create notification
     try {
-      const formattedSlot = appointmentDetails.assignedSlot.toLocaleDateString() + ' at ' + 
-                           appointmentDetails.assignedSlot.toLocaleTimeString([], {
-                             hour: '2-digit', 
-                             minute: '2-digit'
-                           });
+      const formattedSlot = appointmentDetails.assignedSlot.toLocaleTimeString([], {
+        hour: '2-digit', 
+        minute: '2-digit'
+      });
 
       await Notification.create({
-        message: `New term form submission from ${formData.firstName} ${formData.lastName} - scheduled for ${formattedSlot}`,
+        message: `New term form submission from ${formData.firstName} ${formData.lastName} at ${formattedSlot}`,
         formType: 'termForm',
-        read: false,
-        appointmentId: savedAppointment._id
+        read: false
       });
     } catch (notifError) {
       console.error("Notification Creation Failed:", notifError);
     }
 
-    // ✅ IMPROVED: Response with correct date information
-    res.status(201).json({
+        res.status(201).json({
       message: 'Term Life Insurance Form Submission Successful', 
       userEmail: userEmailSent,
       adminAlert: adminAlertSent,
       appointment: {
         id: savedAppointment._id,
         slot: appointmentDetails.assignedSlot,
-        slotFormatted: appointmentDetails.assignedSlot.toLocaleDateString() + ' at ' + appointmentDetails.assignedSlot.toLocaleTimeString(),
         windowStart: appointmentDetails.contactWindowStart,
         windowEnd: appointmentDetails.contactWindowEnd,
         status: 'scheduled'
       },
-      debug: {
-        submittedAt: new Date().toString(),
-        scheduledFor: appointmentDetails.assignedSlot.toString(),
-        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
-      }
     });
 
   } catch (error) {
@@ -1997,7 +1546,6 @@ const submissionForm = asyncHandler(async (req, res) => {
     res.status(500).json({ error: 'Form submission failed: ' + error.message }); 
   }
 });
-   
 
 
 // GET all term forms
