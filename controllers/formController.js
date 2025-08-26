@@ -889,7 +889,7 @@ const client = twilio(
 const VERIFICATION_EXPIRY_MINUTES = 10;
 const VERIFICATION_WINDOW_MINUTES = 30;
 const MAX_ATTEMPTS = 3;
-const CONTACT_WINDOW_START = 24; // hours
+const CONTACT_WINDOW_START = 2; // hours
 const CONTACT_WINDOW_END = 48;   // hours
 const SLOT_DURATION = 30;        // minutes
 
@@ -902,25 +902,30 @@ const isValidEmail = (email) => /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4
 const scheduleAppointment = async () => {
   try {
     const now = new Date();
-    const contactWindowStart = new Date(now.getTime() + CONTACT_WINDOW_START * 60 * 60 * 1000);
+    const contactWindowStart = new Date(now);
     const contactWindowEnd = new Date(now.getTime() + CONTACT_WINDOW_END * 60 * 60 * 1000);
     
     // Get existing appointments
     const existingAppointments = await Appointment.find({
-      assignedSlot: { $gte: contactWindowStart, $lte: contactWindowEnd }
+      assignedSlot: { $gte: now }
     }).sort({ assignedSlot: 1 });
     
     // Generate time slots
     const slots = [];
     let currentSlot = new Date(contactWindowStart);
-    
+
+    const minutes = currentSlot.getMinutes();
+    currentSlot.setMinutes(minutes - (minutes % SLOT_DURATION));
+    currentSlot.setSeconds(0);
+    currentSlot.setMilliseconds(0);
+
     while (currentSlot < contactWindowEnd) {
       slots.push(new Date(currentSlot));
       currentSlot = new Date(currentSlot.getTime() + SLOT_DURATION * 60 * 1000);
     }
     
     // Find available slot
-    let assignedSlot = slots[0];
+    let assignedSlot = null
     
     for (const slot of slots) {
       const slotTaken = existingAppointments.some(app => 
@@ -932,6 +937,10 @@ const scheduleAppointment = async () => {
         break;
       }
     }
+
+    if(!assignedSlot){
+      assignedSlot = contactWindowEnd;
+    }
     
     return { contactWindowStart, contactWindowEnd, assignedSlot };
   } catch (error) {
@@ -939,14 +948,12 @@ const scheduleAppointment = async () => {
     
     // Fallback to random slot
     const now = new Date();
-    const randomOffset = Math.floor(
-      Math.random() * (CONTACT_WINDOW_END - CONTACT_WINDOW_START) * 60 * 60 * 1000
-    );
-    
+ 
+
     return {
-      contactWindowStart: new Date(now.getTime() + CONTACT_WINDOW_START * 60 * 60 * 1000),
+      contactWindowStart: new Date(now),
       contactWindowEnd: new Date(now.getTime() + CONTACT_WINDOW_END * 60 * 60 * 1000),
-      assignedSlot: new Date(now.getTime() + CONTACT_WINDOW_START * 60 * 60 * 1000 + randomOffset)
+      assignedSlot: new Date(now.getTime() + CONTACT_WINDOW_START * 60 * 60 * 1000)
     };
   }
 };
@@ -1647,7 +1654,7 @@ module.exports = {
   verifyEmailCode,
   submissionForm,
   getallForms,
-  deleteForm,
+  deleteForm,  
   getAllNotifs,
   createNotifs,
   deleteNotifs,

@@ -1002,7 +1002,7 @@ const client = twilio(
 const VERIFICATION_EXPIRY_MINUTES = 10;
 const VERIFICATION_WINDOW_MINUTES = 60;
 const MAX_ATTEMPTS = 3;
-const CONTACT_WINDOW_START = 24; // hours
+const CONTACT_WINDOW_START = 2; // hours
 const CONTACT_WINDOW_END = 48;   // hours
 const SLOT_DURATION = 30;        // minutes
 
@@ -1028,59 +1028,58 @@ const generatePrefillUrl = (baseUrl, appointmentId, user) => {
 const scheduleAppointment = async () => {
   try {
     const now = new Date();
-
-    // Set a stable starting point for scheduling
-    const contactWindowStart = new Date(now.getTime() + CONTACT_WINDOW_START * 60 * 60 * 1000);
+    const contactWindowStart = new Date(now);
     const contactWindowEnd = new Date(now.getTime() + CONTACT_WINDOW_END * 60 * 60 * 1000);
-
-    // Query for ALL future appointments to avoid conflicts
+    
+    // Get existing appointments
     const existingAppointments = await Appointment.find({
       assignedSlot: { $gte: now }
     }).sort({ assignedSlot: 1 });
-
+    
+    // Generate time slots
     const slots = [];
     let currentSlot = new Date(contactWindowStart);
+
+    const minutes = currentSlot.getMinutes();
+    currentSlot.setMinutes(minutes - (minutes % SLOT_DURATION));
+    currentSlot.setSeconds(0);
+    currentSlot.setMilliseconds(0);
 
     while (currentSlot < contactWindowEnd) {
       slots.push(new Date(currentSlot));
       currentSlot = new Date(currentSlot.getTime() + SLOT_DURATION * 60 * 1000);
     }
-
-    let assignedSlot = null;
-
-    // Find the first slot that is not taken
+    
+    // Find available slot
+    let assignedSlot = null
+    
     for (const slot of slots) {
-      const slotTaken = existingAppointments.some(app =>
+      const slotTaken = existingAppointments.some(app => 
         app.assignedSlot.getTime() === slot.getTime()
       );
+      
       if (!slotTaken) {
         assignedSlot = slot;
         break;
       }
     }
 
-    // If all slots are taken, fall back to the end of the window
-    if (!assignedSlot) {
+    if(!assignedSlot){
       assignedSlot = contactWindowEnd;
     }
-
-    return {
-      contactWindowStart,
-      contactWindowEnd,
-      assignedSlot
-    };
+    
+    return { contactWindowStart, contactWindowEnd, assignedSlot };
   } catch (error) {
     console.error("Scheduling Error:", error);
-    // Fallback mechanism
+    
+    // Fallback to random slot
     const now = new Date();
-    const randomOffset = Math.floor(
-      Math.random() *
-      (CONTACT_WINDOW_END - CONTACT_WINDOW_START) * 60 * 60 * 1000
-    );
+ 
+
     return {
-      contactWindowStart: new Date(now.getTime() + CONTACT_WINDOW_START * 60 * 60 * 1000),
+      contactWindowStart: new Date(now),
       contactWindowEnd: new Date(now.getTime() + CONTACT_WINDOW_END * 60 * 60 * 1000),
-      assignedSlot: new Date(now.getTime() + CONTACT_WINDOW_START * 60 * 60 * 1000 + randomOffset)
+      assignedSlot: new Date(now.getTime() + CONTACT_WINDOW_START * 60 * 60 * 1000)
     };
   }
 };
