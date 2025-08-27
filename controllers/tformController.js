@@ -873,7 +873,7 @@ Email: ${process.env.SES_SENDER_EMAIL}`;
           req.io.to('admins').emit('updateAppointment', appointmentWithUser);
           console.log('✅ WebSocket update event emitted');
         }
-      } catch (wsError) {
+      } catch (wsError) {  
         console.error('❌ WebSocket emission failed (non-critical):', wsError.message);
         // Don't fail the request if WebSocket fails
       }
