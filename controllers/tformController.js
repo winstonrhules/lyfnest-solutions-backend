@@ -856,127 +856,286 @@ const deleteForm = asyncHandler(async (req, res) => {
 //     });
 //   }
 // });
+// Debug version of contactUserByEmail - Add this to identify the exact failure point
 
 
-// 📧 CONTACT USER BY EMAIL (Send Scheduler Link)
+// First, let's create a minimal version to test each step
 const contactUserByEmail = asyncHandler(async (req, res) => {
+  console.log('=== CONTACT EMAIL DEBUG START ===');
+  
   try {
-    const { 
-      appointmentId, 
-      userEmail, 
-      userName, 
-      subject = "Your Scheduler Link", 
-      message = "Please use the link below to schedule your meeting.", 
-      adminName = "LyfNest Advisor",
-      contactMethod = 'email'
-    } = req.body;
+    // Step 1: Log the incoming request
+    console.log('Step 1 - Request received:', {
+      body: req.body,
+      headers: req.headers
+    });
 
-    // ✅ Validate required fields
+    const { appointmentId, userEmail, userName } = req.body;
+
+    // Step 2: Validate basic inputs
+    console.log('Step 2 - Validating inputs:', {
+      appointmentId,
+      userEmail,
+      userName,
+      hasAppointmentId: !!appointmentId,
+      hasUserEmail: !!userEmail,
+      hasUserName: !!userName
+    });
+
     if (!appointmentId || !userEmail || !userName) {
-      console.warn("❌ Missing required fields:", { appointmentId, userEmail, userName });
+      console.log('Step 2 FAILED - Missing required fields');
       return res.status(400).json({ 
         success: false,
-        error: 'Missing required fields: appointmentId, userEmail, userName' 
+        error: 'Missing required fields',
+        received: { appointmentId: !!appointmentId, userEmail: !!userEmail, userName: !!userName }
       });
     }
 
-    if (!isValidEmail(userEmail)) {
-      console.warn("❌ Invalid email format:", userEmail);
-      return res.status(400).json({ success: false, error: 'Invalid email format' });
+    // Step 3: Check environment variables
+    console.log('Step 3 - Checking environment variables:', {
+      hasAwsAccessKey: !!process.env.AWS_ACCESS_KEY_ID,
+      hasAwsSecretKey: !!process.env.AWS_SECRET_ACCESS_KEY,
+      hasAwsRegion: !!process.env.AWS_REGION,
+      hasSenderEmail: !!process.env.SES_SENDER_EMAIL,
+      awsRegion: process.env.AWS_REGION,
+      senderEmail: process.env.SES_SENDER_EMAIL
+    });
+
+    if (!process.env.AWS_ACCESS_KEY_ID || !process.env.AWS_SECRET_ACCESS_KEY || !process.env.SES_SENDER_EMAIL) {
+      console.log('Step 3 FAILED - Missing AWS configuration');
+      return res.status(500).json({
+        success: false,
+        error: 'Server configuration error - missing AWS credentials'
+      });
     }
 
-    // ✅ Find appointment
-    const appointment = await Appointment.findById(appointmentId);
+    // Step 4: Try to find appointment
+    console.log('Step 4 - Finding appointment with ID:', appointmentId);
+    
+    let appointment;
+    try {
+      appointment = await Appointment.findById(appointmentId);
+      console.log('Step 4 - Appointment query result:', {
+        found: !!appointment,
+        appointmentData: appointment ? {
+          id: appointment._id,
+          status: appointment.status,
+          formType: appointment.formType,
+          hasFormData: !!appointment.formData,
+          assignedSlot: appointment.assignedSlot
+        } : null
+      });
+    } catch (dbError) {
+      console.log('Step 4 FAILED - Database error:', dbError.message);
+      return res.status(500).json({
+        success: false,
+        error: 'Database error finding appointment',
+        details: dbError.message
+      });
+    }
+
     if (!appointment) {
-      console.warn("❌ Appointment not found:", appointmentId);
-      return res.status(404).json({ success: false, error: 'Appointment not found' });
+      console.log('Step 4 FAILED - Appointment not found');
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Appointment not found',
+        searchedId: appointmentId
+      });
     }
 
-    // ✅ Build scheduler link safely
-    if (!process.env.ZOOM_URL) {
-      console.error("❌ ZOOM_URL is not defined in environment variables!");
-      return res.status(500).json({ success: false, error: 'Scheduler link configuration missing (ZOOM_URL not set)' });
+    // Step 5: Try to initialize SES client
+    console.log('Step 5 - Initializing SES client');
+    
+    let SESClient, SendEmailCommand;
+    try {
+      const AWS_SDK = require("@aws-sdk/client-ses");
+      SESClient = AWS_SDK.SESClient;
+      SendEmailCommand = AWS_SDK.SendEmailCommand;
+      console.log('Step 5 - AWS SDK imported successfully');
+    } catch (importError) {
+      console.log('Step 5 FAILED - AWS SDK import error:', importError.message);
+      return res.status(500).json({
+        success: false,
+        error: 'AWS SDK not available',
+        details: importError.message
+      });
     }
 
-    const schedulerLink = generatePrefillUrl(
-      process.env.ZOOM_URL, 
-      appointmentId, {
-        firstName: userName.split(' ')[0] || '',
-        lastName: userName.split(' ')[1] || '',
-        email: userEmail
-      }
-    );
+    let sesClient;
+    try {
+      sesClient = new SESClient({
+        region: process.env.AWS_REGION || "us-east-1",
+        credentials: {
+          accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+        },
+      });
+      console.log('Step 5 - SES client created successfully');
+    } catch (sesInitError) {
+      console.log('Step 5 FAILED - SES client initialization error:', sesInitError.message);
+      return res.status(500).json({
+        success: false,
+        error: 'SES client initialization failed',
+        details: sesInitError.message
+      });
+    }
 
-    // ✅ Build email params
+    // Step 6: Create email parameters
+    console.log('Step 6 - Creating email parameters');
+    
+    const schedulerLink = process.env.ZOOM_URL || `https://scheduler.zoom.us/your-link?appointment=${appointmentId}`;
+    const emailSubject = `Schedule Your Financial Consultation - LyfNest Solutions`;
+    
+    const emailMessage = `Hi ${userName},
+
+Thank you for submitting your request! I'm following up to schedule your financial consultation.
+
+Please use the link below to pick a time that works best for you:
+${schedulerLink}
+
+Best regards,
+LyfNest Solutions Team
+Email: ${process.env.SES_SENDER_EMAIL}`;
+
     const params = {
-      Destination: { ToAddresses: [userEmail] },
+      Destination: { 
+        ToAddresses: [userEmail] 
+      },
       Message: {
         Body: {
-          Html: {
-            Charset: "UTF-8",
-            Data: `
-              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-                <h2 style="color: #1a237e;">Hello ${userName},</h2>
-                <p>${message}</p>
-                <p>
-                  <a href="${schedulerLink}" 
-                     style="background: #1a73e8; color: #fff; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
-                     Book Your Appointment
-                  </a>
-                </p>
-                <p style="color: #616161;">Best regards,<br>${adminName}</p>
-              </div>`
-          },
           Text: {
             Charset: "UTF-8",
-            Data: `Hello ${userName},\n\n${message}\n\nScheduler Link: ${schedulerLink}\n\nBest regards,\n${adminName}`
+            Data: emailMessage
           }
         },
         Subject: {
           Charset: "UTF-8",
-          Data: subject
+          Data: emailSubject
         }
       },
       Source: process.env.SES_SENDER_EMAIL
     };
 
-    // ✅ Send via SES
-    try {
-      await sesClient.send(new SendEmailCommand(params));
-      console.log(`✅ Scheduler email sent to ${userEmail} for appointment ${appointmentId}`);
+    console.log('Step 6 - Email parameters created:', {
+      to: userEmail,
+      from: process.env.SES_SENDER_EMAIL,
+      subject: emailSubject,
+      schedulerLink
+    });
 
-      // Return success with appointment info
-      return res.status(200).json({ 
-        success: true,
-        message: 'Scheduler link sent successfully',
-        appointment: {
-          ...appointment.toObject(),
-          status: 'contacted',
-          lastContactDate: new Date(),
-          contactMethod,
-          contactedBy: adminName
-        }
+    // Step 7: Try to send email
+    console.log('Step 7 - Attempting to send email');
+    
+    let emailResult;
+    try {
+      emailResult = await sesClient.send(new SendEmailCommand(params));
+      console.log('Step 7 - Email sent successfully:', {
+        messageId: emailResult.MessageId,
+        metadata: emailResult.$metadata
       });
-    } catch (sesError) {
-      console.error("❌ SES Email Send Failed:", {
-        message: sesError.message,
-        stack: sesError.stack,
-        code: sesError.code
+    } catch (emailError) {
+      console.log('Step 7 FAILED - Email sending error:', {
+        name: emailError.name,
+        message: emailError.message,
+        code: emailError.code,
+        statusCode: emailError.$metadata?.httpStatusCode,
+        requestId: emailError.$metadata?.requestId
       });
+      
       return res.status(500).json({ 
-        success: false, 
-        error: 'Failed to send email via SES. Check SES configuration/verified addresses.' 
+        success: false,
+        message: 'Failed to send email via SES',
+        error: emailError.message,
+        errorName: emailError.name,
+        errorCode: emailError.code
       });
     }
 
-  } catch (error) {
-    console.error("❌ contactUserByEmail Fatal Error:", {
-      message: error.message,
-      stack: error.stack
+    // Step 8: Update appointment
+    console.log('Step 8 - Updating appointment status');
+    
+    let updatedAppointment;
+    try {
+      updatedAppointment = await Appointment.findByIdAndUpdate(
+        appointmentId,
+        {
+          status: 'contacted',
+          lastContactDate: new Date(),
+          contactMethod: 'email',
+          contactedBy: 'Admin',
+          lastUpdated: new Date()
+        },
+        { new: true, runValidators: true }
+      );
+      
+      console.log('Step 8 - Appointment updated successfully:', {
+        id: updatedAppointment._id,
+        status: updatedAppointment.status,
+        lastContactDate: updatedAppointment.lastContactDate
+      });
+    } catch (updateError) {
+      console.log('Step 8 FAILED - Appointment update error:', updateError.message);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to update appointment after sending email',
+        details: updateError.message
+      });
+    }
+
+    // Step 9: WebSocket update (optional)
+    console.log('Step 9 - WebSocket update');
+    if (req.io) {
+      try {
+        req.io.emit('updateAppointment', updatedAppointment);
+        console.log('Step 9 - WebSocket update sent');
+      } catch (wsError) {
+        console.log('Step 9 WARNING - WebSocket error (non-critical):', wsError.message);
+      }
+    } else {
+      console.log('Step 9 - No WebSocket available (req.io not found)');
+    }
+
+    // Step 10: Success response
+    console.log('Step 10 - Sending success response');
+    
+    const response = {
+      success: true,
+      message: 'Scheduler link sent successfully',
+      appointment: {
+        _id: updatedAppointment._id,
+        status: updatedAppointment.status,
+        lastContactDate: updatedAppointment.lastContactDate,
+        assignedSlot: updatedAppointment.assignedSlot,
+        user: {
+          firstName: userName.split(' ')[0] || 'N/A',
+          lastName: userName.split(' ')[1] || 'N/A',
+          email: userEmail
+        }
+      },
+      emailSent: true,
+      sentAt: new Date()
+    };
+
+    res.status(200).json(response);
+    console.log('=== CONTACT EMAIL DEBUG SUCCESS ===');
+
+  } catch (generalError) {
+    console.log('=== CONTACT EMAIL DEBUG FAILED ===');
+    console.error('General error caught:', {
+      name: generalError.name,
+      message: generalError.message,
+      stack: generalError.stack
     });
-    return res.status(500).json({ success: false, error: 'Internal Server Error in contactUserByEmail' });
+    
+    res.status(500).json({ 
+      success: false,
+      message: 'Internal server error in contact email function',
+      error: generalError.message,
+      errorName: generalError.name
+    });
   }
 });
+
 
 
 // Notification handlers
