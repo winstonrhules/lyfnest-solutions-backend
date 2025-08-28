@@ -6,6 +6,10 @@ const zoomMeetingSchema = new mongoose.Schema({
     ref: 'Appointment',
     required: true
   },  
+
+  topic:String,
+  startTime:Date,
+
   meetingId: {
     type: String,
     required: true,
@@ -21,7 +25,8 @@ const zoomMeetingSchema = new mongoose.Schema({
     required: true,
   },
   hostEmail: String,
-  schedulerUrl:String,
+  registrationUrl:String,
+  password:String,
   syncedAt:Date,
   createdAt: {
     type: Date,

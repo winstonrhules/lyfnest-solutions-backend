@@ -1237,6 +1237,7 @@ const EmailVerification = require('../models/emailVerificationsModels');
 const Notification = require('../models/notificationModels');
 const User = require("../models/userModels");
 const { SESClient, SendEmailCommand } = require("@aws-sdk/client-ses");
+const ZoomService = require('../utils/zoomService');
 
 // Initialize SES client
 const sesClient = new SESClient({
@@ -1266,19 +1267,6 @@ const generateNumericToken = () => crypto.randomInt(100000, 1000000).toString();
 const isE164Format = (phone) => /^\+\d{1,3}\d{6,14}$/.test(phone);
 const isValidEmail = (email) => /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4}$/.test(email);
 
-const generatePrefillUrl = (baseUrl, appointmentId, user) => {
-  try {
-    const url = new URL(baseUrl);
-    url.searchParams.append('appointmentId', appointmentId);
-    url.searchParams.append('firstName', user.firstName);
-    url.searchParams.append('lastName', user.lastName);
-    url.searchParams.append('email', user.email);
-    return url.toString();
-  } catch (error) {
-    console.error('Error generating pre-fill URL:', error);
-    return baseUrl;
-  }
-};
 
 const scheduleAppointment = async () => {
   try {
@@ -1832,7 +1820,257 @@ const deleteForm = asyncHandler(async (req, res) => {
   }
 })
 
-const contactUserByEmail = asyncHandler(async (req, res) => {
+// const contactUserByEmail = asyncHandler(async (req, res) => {
+//   try {
+//     const { 
+//       appointmentId, 
+//       userEmail, 
+//       userName, 
+//       subject, 
+//       message,
+//       adminName,
+//       contactMethod = 'email'
+//     } = req.body;
+
+//     // Validation
+//     if (!appointmentId || !userEmail || !userName) {
+//       return res.status(400).json({ 
+//         success: false,
+//         error: 'Missing required fields: appointmentId, userEmail, userName' 
+//       });
+//     }
+
+//     if (!isValidEmail(userEmail)) {
+//       return res.status(400).json({success: false, error: 'Invalid email format' });
+//     }
+
+//     // Find the appointment
+//     const appointment = await Appointment.findById(appointmentId);
+//     if (!appointment) {
+//       return res.status(404).json({ success: false, error: 'Appointment not found' });
+//     }
+
+//     // Use static scheduler link
+//        const schedulerLink = process.env.ZOOM_URL
+  
+
+//     // Get form details only for termForm
+//     let formData = null;
+//     if (appointment.formType === 'termForm' && appointment.formId) {
+//       formData = await Tform.findById(appointment.formId);
+//     }
+    
+//     // Default subject and message
+//     const emailSubject = subject || `Schedule Your Financial Consultation - LyfNest Solutions`;
+    
+//     const defaultMessage = `Hi ${userName},
+
+// Thank you for submitting your request! I'm following up to schedule your financial consultation.
+
+// Please use the link below to pick a time that works best for you:
+// ${schedulerLink}
+
+// ${formData ? `Based on your submitted information:
+// ${formData.coverageAmount ? `• Coverage Amount: ${formData.coverageAmount}\n` : ''}
+// ${formData.preferredTerm ? `• Preferred Term: ${formData.preferredTerm}\n` : ''}
+// ` : ''}
+
+// Once you schedule your preferred time, I'll receive a notification and we'll be all set for our meeting.
+
+// Best regards,
+// ${adminName || 'LyfNest Solutions Team'}
+// Email: ${process.env.SES_SENDER_EMAIL}`;
+
+//     const emailMessage = message || defaultMessage;
+
+//     // Send email with scheduler link
+//     const params = {
+//       Destination: { ToAddresses: [userEmail] },
+//       Message: {
+//         Body: {
+//           Html: {
+//             Charset: "UTF-8",
+//             Data: `
+//               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+//                 <div style="background: #a4dcd7; color: white; padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+//                   <img src="https://res.cloudinary.com/dma2ht84k/image/upload/v1753279441/lyfnest-logo_byfywb.png" alt="LyfNest Solutions Logo" style="width: 50px; height: 50px; margin-bottom: 10px;">
+//                   <h2 style="margin: 0;">Schedule Your Consultation</h2>
+//                 </div>
+              
+//                 <div style="background: #ffffff; padding: 30px; border: 1px solid #e0e0e0; border-top: none;">
+//                   <div style="white-space: pre-line; line-height: 1.6; color: #333;">
+//                     ${emailMessage.replace(/\n/g, '<br>')}
+//                   </div>
+                  
+//                   <div style="text-align: center; margin: 30px 0;">
+//                     <a href="${schedulerLink}" 
+//                        style="background: #4caf50; 
+//                               color: white; 
+//                               padding: 15px 30px; 
+//                               text-decoration: none; 
+//                               border-radius: 5px;
+//                               font-weight: bold;
+//                               font-size: 16px;
+//                               display: inline-block;">
+//                       📅 Schedule My Meeting
+//                     </a>
+//                   </div>
+                  
+//                   ${formData ? `
+//                   <div style="background: #f8f9fa; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #4caf50;">
+//                     <h3 style="color: #2e7d32; margin-top: 0;">Your Inquiry Details:</h3>
+//                     <ul style="color: #555; margin: 10px 0;">
+//                       ${formData.coverageAmount ? `<li><strong>Coverage Amount:</strong> ${formData.coverageAmount}</li>` : ''}
+//                       ${formData.preferredTerm ? `<li><strong>Preferred Term:</strong> ${formData.preferredTerm}</li>` : ''}
+//                       ${formData.phoneNumber ? `<li><strong>Phone:</strong> ${formData.phoneNumber}</li>` : ''}
+//                     </ul>
+//                   </div>
+//                   ` : ''}
+                  
+//                   <div style="background: #e3f2fd; padding: 15px; border-radius: 5px; margin-top: 20px;">
+//                     <p style="margin: 0; color: #1976d2; font-size: 14px;">
+//                       <strong>📝 Note:</strong> After you schedule, I'll receive an automatic notification with your chosen time and will prepare for our meeting accordingly.
+//                     </p>
+//                   </div>
+//                 </div>
+                
+//                 <div style="background: #f5f5f5; padding: 20px; text-align: center; border-radius: 0 0 10px 10px;">
+//                   <p style="margin: 0; color: #666; font-size: 14px;">
+//                     <strong>LyfNest Solutions</strong><br>
+//                     Email: ${process.env.SES_SENDER_EMAIL}
+//                   </p>
+//                 </div>
+//               </div>
+//             `
+//           },
+//           Text: {
+//             Charset: "UTF-8",
+//             Data: `${emailMessage}\n\nSchedule your meeting: ${schedulerLink}`
+//           }
+//         },
+//         Subject: {
+//           Charset: "UTF-8",
+//           Data: emailSubject
+//         }
+//       },
+//       Source: process.env.SES_SENDER_EMAIL
+//     };
+
+//     // Send the email
+//     let emailSent = false;
+//     try {
+//       await sesClient.send(new SendEmailCommand(params));
+//       console.log('✅ Email sent successfully to:', userEmail);
+//       emailSent = true;
+//     } catch (emailError) {
+//       console.error('❌ Email sending failed:', emailError);
+//       return res.status(500).json({ 
+//         success: false,
+//         message: 'Failed to send scheduler email',
+//         error: emailError.message 
+//       });
+//     }
+
+//     // ✅ CRITICAL: Update appointment status to 'contacted' IMMEDIATELY after email success
+//     const updatedAppointment = await Appointment.findByIdAndUpdate(
+//       appointmentId,
+//       {
+//         status: 'contacted',
+//         lastContactDate: new Date(),
+//         contactMethod: contactMethod,
+//         contactedBy: adminName || 'Admin'
+//       },
+//       { new: true }
+//     );
+
+//     if (!updatedAppointment) {
+//       console.error('❌ Failed to update appointment status');
+//       return res.status(500).json({ 
+//         success: false,
+//         message: 'Email sent but failed to update appointment status'
+//       });
+//     }
+
+//     console.log('✅ Appointment status updated to contacted:', updatedAppointment._id);
+
+//     // ✅ EMIT WEBSOCKET UPDATE EVENT IMMEDIATELY
+//     if (req.io && updatedAppointment) {
+//       try {
+//         const appointmentWithUser = await Appointment.findById(appointmentId)
+//           .populate('formId')
+//           .lean();
+        
+//         // Add user info for frontend
+//         if (appointmentWithUser.formData || appointmentWithUser.formId) {
+//           const formInfo = appointmentWithUser.formData || appointmentWithUser.formId;
+//           appointmentWithUser.user = {
+//             firstName: formInfo.firstName || userName.split(' ')[0] || 'N/A',
+//             lastName: formInfo.lastName || userName.split(' ')[1] || 'N/A',
+//             email: formInfo.Email || formInfo.email || userEmail || 'N/A',
+//             phoneNumber: formInfo.phoneNumber || 'N/A'
+//           };
+//         } else {
+//           // Fallback user info
+//           appointmentWithUser.user = {
+//             firstName: userName.split(' ')[0] || 'N/A',
+//             lastName: userName.split(' ')[1] || 'N/A',
+//             email: userEmail || 'N/A',
+//             phoneNumber: 'N/A'
+//           };
+//         }
+        
+//         // Emit to all clients and admin room
+//         req.io.emit('updateAppointment', appointmentWithUser);
+//         req.io.to('admins').emit('updateAppointment', appointmentWithUser);
+//         console.log('✅ WebSocket update event emitted for appointment:', appointmentId);
+//       } catch (wsError) {
+//         console.error('❌ WebSocket emission failed:', wsError);
+//         // Don't fail the request if WebSocket fails
+//       }
+//     } else {
+//       console.warn('⚠️  req.io is not available - WebSocket not emitted');
+//     }
+
+//     // ✅ RETURN SUCCESS RESPONSE WITH UPDATED APPOINTMENT
+//     res.status(200).json({
+//       success: true,
+//       message: 'Scheduler link sent successfully',
+//       appointment: {
+//         _id: updatedAppointment._id,
+//         status: updatedAppointment.status,
+//         lastContactDate: updatedAppointment.lastContactDate,
+//         contactMethod: updatedAppointment.contactMethod,
+//         contactedBy: updatedAppointment.contactedBy,
+//         assignedSlot: updatedAppointment.assignedSlot,
+//         formType: updatedAppointment.formType,
+//         formData: updatedAppointment.formData,
+//         user: {
+//           firstName: userName.split(' ')[0] || 'N/A',
+//           lastName: userName.split(' ')[1] || 'N/A',
+//           email: userEmail,
+//           phoneNumber: formData?.phoneNumber || 'N/A'
+//         }
+//       },
+//       appointmentId,
+//       contactMethod: 'email',
+//       sentAt: new Date(),
+//       recipient: userEmail,
+//       schedulerLink: schedulerLink,
+//       emailSent: emailSent,
+//       statusUpdated: true
+//     });
+
+//   } catch (error) {
+//     console.error("❌ Contact Email Error:", error);
+//     res.status(500).json({ 
+//       success: false,
+//       message: 'Failed to send contact email',
+//       error: error.message 
+//     });
+//   }
+// });
+
+const enhancedContactUserByEmail = async (req, res) => {
   try {
     const { 
       appointmentId, 
@@ -1852,47 +2090,76 @@ const contactUserByEmail = asyncHandler(async (req, res) => {
       });
     }
 
-    if (!isValidEmail(userEmail)) {
-      return res.status(400).json({success: false, error: 'Invalid email format' });
-    }
-
     // Find the appointment
-    const appointment = await Appointment.findById(appointmentId);
+    const appointment = await Appointment.findById(appointmentId).populate('formId');
     if (!appointment) {
       return res.status(404).json({ success: false, error: 'Appointment not found' });
     }
 
-    // Use static scheduler link
-       const schedulerLink = generatePrefillUrl(
-        process.env.ZOOM_URL, 
-        appointmentId, {
-         firstName: userName.split(' ')[0],
-         lastName: userName.split(' ')[1] || '',
-         email: userEmail
-       });
+    // ✅ CREATE ZOOM MEETING when sending scheduler link
+    const zoomService = new ZoomService();
+    let zoomMeeting = null;
+    
+    try {
+      // Create Zoom meeting
+      const meetingData = await zoomService.createMeeting({
+        user: {
+          firstName: userName.split(' ')[0] || 'Client',
+          lastName: userName.split(' ')[1] || '',
+          email: userEmail
+        },
+        assignedSlot: appointment.assignedSlot,
+        formType: appointment.formType || 'consultation'
+      });
 
-    // Get form details only for termForm
+      zoomMeeting = {
+        id: meetingData.id,
+        meetingId: meetingData.id,
+        topic: meetingData.topic,
+        startTime: meetingData.start_time,
+        joinUrl: meetingData.join_url,
+        startUrl: meetingData.start_url,
+        registrationUrl: meetingData.registration_url,
+        password: meetingData.password,
+        createdAt: new Date()
+      };
+
+      console.log('✅ Zoom meeting created for appointment:', appointmentId);
+    } catch (zoomError) {
+      console.error('❌ Failed to create Zoom meeting:', zoomError);
+      // Continue without Zoom meeting
+    }
+
+    // Get form details
     let formData = null;
     if (appointment.formType === 'termForm' && appointment.formId) {
-      formData = await Tform.findById(appointment.formId);
+      formData = appointment.formId;
     }
     
-    // Default subject and message
+    // Create scheduler link with Zoom meeting registration
+    const schedulerLink = zoomMeeting ? zoomMeeting.registrationUrl : process.env.ZOOM_URL;
+    
+    // Default subject and message with Zoom integration
     const emailSubject = subject || `Schedule Your Financial Consultation - LyfNest Solutions`;
     
     const defaultMessage = `Hi ${userName},
 
 Thank you for submitting your request! I'm following up to schedule your financial consultation.
 
-Please use the link below to pick a time that works best for you:
+${zoomMeeting ? 
+  `Please use the link below to register for your Zoom meeting and pick a time that works best for you:
 ${schedulerLink}
+
+This will be a secure Zoom meeting where we can discuss your financial needs in detail.` :
+  `Please use the link below to pick a time that works best for you:
+${schedulerLink}`}
 
 ${formData ? `Based on your submitted information:
 ${formData.coverageAmount ? `• Coverage Amount: ${formData.coverageAmount}\n` : ''}
 ${formData.preferredTerm ? `• Preferred Term: ${formData.preferredTerm}\n` : ''}
 ` : ''}
 
-Once you schedule your preferred time, I'll receive a notification and we'll be all set for our meeting.
+Once you ${zoomMeeting ? 'register and confirm' : 'schedule'} your preferred time, I'll receive a notification and we'll be all set for our meeting.
 
 Best regards,
 ${adminName || 'LyfNest Solutions Team'}
@@ -1900,7 +2167,17 @@ Email: ${process.env.SES_SENDER_EMAIL}`;
 
     const emailMessage = message || defaultMessage;
 
-    // Send email with scheduler link
+    // Send email with Zoom meeting link
+    const { SESClient, SendEmailCommand } = require("@aws-sdk/client-ses");
+    
+    const sesClient = new SESClient({
+      region: process.env.AWS_REGION,
+      credentials: {
+        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+      }
+    });
+
     const params = {
       Destination: { ToAddresses: [userEmail] },
       Message: {
@@ -1911,7 +2188,7 @@ Email: ${process.env.SES_SENDER_EMAIL}`;
               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
                 <div style="background: #a4dcd7; color: white; padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
                   <img src="https://res.cloudinary.com/dma2ht84k/image/upload/v1753279441/lyfnest-logo_byfywb.png" alt="LyfNest Solutions Logo" style="width: 50px; height: 50px; margin-bottom: 10px;">
-                  <h2 style="margin: 0;">Schedule Your Consultation</h2>
+                  <h2 style="margin: 0;">${zoomMeeting ? 'Join Your Zoom Consultation' : 'Schedule Your Consultation'}</h2>
                 </div>
               
                 <div style="background: #ffffff; padding: 30px; border: 1px solid #e0e0e0; border-top: none;">
@@ -1921,7 +2198,7 @@ Email: ${process.env.SES_SENDER_EMAIL}`;
                   
                   <div style="text-align: center; margin: 30px 0;">
                     <a href="${schedulerLink}" 
-                       style="background: #4caf50; 
+                       style="background: ${zoomMeeting ? '#0070f3' : '#4caf50'}; 
                               color: white; 
                               padding: 15px 30px; 
                               text-decoration: none; 
@@ -1929,9 +2206,23 @@ Email: ${process.env.SES_SENDER_EMAIL}`;
                               font-weight: bold;
                               font-size: 16px;
                               display: inline-block;">
-                      📅 Schedule My Meeting
+                      ${zoomMeeting ? '🎥 Register for Zoom Meeting' : '📅 Schedule My Meeting'}
                     </a>
                   </div>
+                  
+                  ${zoomMeeting ? `
+                  <div style="background: #e3f2fd; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #2196f3;">
+                    <h3 style="color: #1976d2; margin-top: 0;">Zoom Meeting Details:</h3>
+                    <ul style="color: #555; margin: 10px 0;">
+                      <li><strong>Meeting ID:</strong> ${zoomMeeting.meetingId}</li>
+                      <li><strong>Topic:</strong> ${zoomMeeting.topic}</li>
+                      <li><strong>Scheduled Time:</strong> ${new Date(appointment.assignedSlot).toLocaleString()}</li>
+                    </ul>
+                    <p style="color: #666; font-size: 14px; margin-top: 15px;">
+                      After registration, you'll receive a confirmation email with the meeting link and details.
+                    </p>
+                  </div>
+                  ` : ''}
                   
                   ${formData ? `
                   <div style="background: #f8f9fa; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #4caf50;">
@@ -1943,12 +2234,6 @@ Email: ${process.env.SES_SENDER_EMAIL}`;
                     </ul>
                   </div>
                   ` : ''}
-                  
-                  <div style="background: #e3f2fd; padding: 15px; border-radius: 5px; margin-top: 20px;">
-                    <p style="margin: 0; color: #1976d2; font-size: 14px;">
-                      <strong>📝 Note:</strong> After you schedule, I'll receive an automatic notification with your chosen time and will prepare for our meeting accordingly.
-                    </p>
-                  </div>
                 </div>
                 
                 <div style="background: #f5f5f5; padding: 20px; text-align: center; border-radius: 0 0 10px 10px;">
@@ -1962,7 +2247,7 @@ Email: ${process.env.SES_SENDER_EMAIL}`;
           },
           Text: {
             Charset: "UTF-8",
-            Data: `${emailMessage}\n\nSchedule your meeting: ${schedulerLink}`
+            Data: `${emailMessage}\n\n${zoomMeeting ? 'Register for meeting' : 'Schedule your meeting'}: ${schedulerLink}`
           }
         },
         Subject: {
@@ -1988,86 +2273,42 @@ Email: ${process.env.SES_SENDER_EMAIL}`;
       });
     }
 
-    // ✅ CRITICAL: Update appointment status to 'contacted' IMMEDIATELY after email success
-    const updatedAppointment = await Appointment.findByIdAndUpdate(
-      appointmentId,
-      {
-        status: 'contacted',
-        lastContactDate: new Date(),
-        contactMethod: contactMethod,
-        contactedBy: adminName || 'Admin'
-      },
-      { new: true }
-    );
+    // ✅ Update appointment with Zoom meeting and contacted status
+    const updateData = {
+      status: 'contacted',
+      lastContactDate: new Date(),
+      contactMethod: contactMethod,
+      contactedBy: adminName || 'Admin'
+    };
 
-    if (!updatedAppointment) {
-      console.error('❌ Failed to update appointment status');
-      return res.status(500).json({ 
-        success: false,
-        message: 'Email sent but failed to update appointment status'
-      });
+    if (zoomMeeting) {
+      updateData.zoomMeeting = zoomMeeting;
     }
 
-    console.log('✅ Appointment status updated to contacted:', updatedAppointment._id);
+    const updatedAppointment = await Appointment.findByIdAndUpdate(
+      appointmentId,
+      updateData,
+      { new: true }
+    ).populate('formId').lean();
 
     // ✅ EMIT WEBSOCKET UPDATE EVENT IMMEDIATELY
-    if (req.io && updatedAppointment) {
+    if (req.io) {
       try {
-        const appointmentWithUser = await Appointment.findById(appointmentId)
-          .populate('formId')
-          .lean();
+        const appointmentWithUser = await zoomService.enrichAppointmentWithUser(updatedAppointment);
         
-        // Add user info for frontend
-        if (appointmentWithUser.formData || appointmentWithUser.formId) {
-          const formInfo = appointmentWithUser.formData || appointmentWithUser.formId;
-          appointmentWithUser.user = {
-            firstName: formInfo.firstName || userName.split(' ')[0] || 'N/A',
-            lastName: formInfo.lastName || userName.split(' ')[1] || 'N/A',
-            email: formInfo.Email || formInfo.email || userEmail || 'N/A',
-            phoneNumber: formInfo.phoneNumber || 'N/A'
-          };
-        } else {
-          // Fallback user info
-          appointmentWithUser.user = {
-            firstName: userName.split(' ')[0] || 'N/A',
-            lastName: userName.split(' ')[1] || 'N/A',
-            email: userEmail || 'N/A',
-            phoneNumber: 'N/A'
-          };
-        }
-        
-        // Emit to all clients and admin room
         req.io.emit('updateAppointment', appointmentWithUser);
         req.io.to('admins').emit('updateAppointment', appointmentWithUser);
         console.log('✅ WebSocket update event emitted for appointment:', appointmentId);
       } catch (wsError) {
         console.error('❌ WebSocket emission failed:', wsError);
-        // Don't fail the request if WebSocket fails
       }
-    } else {
-      console.warn('⚠️  req.io is not available - WebSocket not emitted');
     }
 
-    // ✅ RETURN SUCCESS RESPONSE WITH UPDATED APPOINTMENT
     res.status(200).json({
       success: true,
-      message: 'Scheduler link sent successfully',
-      appointment: {
-        _id: updatedAppointment._id,
-        status: updatedAppointment.status,
-        lastContactDate: updatedAppointment.lastContactDate,
-        contactMethod: updatedAppointment.contactMethod,
-        contactedBy: updatedAppointment.contactedBy,
-        assignedSlot: updatedAppointment.assignedSlot,
-        formType: updatedAppointment.formType,
-        formData: updatedAppointment.formData,
-        user: {
-          firstName: userName.split(' ')[0] || 'N/A',
-          lastName: userName.split(' ')[1] || 'N/A',
-          email: userEmail,
-          phoneNumber: formData?.phoneNumber || 'N/A'
-        }
-      },
+      message: zoomMeeting ? 'Zoom meeting created and scheduler link sent successfully' : 'Scheduler link sent successfully',
+      appointment: updatedAppointment,
+      zoomMeeting: zoomMeeting,
       appointmentId,
       contactMethod: 'email',
       sentAt: new Date(),
@@ -2078,14 +2319,15 @@ Email: ${process.env.SES_SENDER_EMAIL}`;
     });
 
   } catch (error) {
-    console.error("❌ Contact Email Error:", error);
+    console.error("❌ Enhanced Contact Email Error:", error);
     res.status(500).json({ 
       success: false,
       message: 'Failed to send contact email',
       error: error.message 
     });
   }
-});
+};
+const contactUserByEmail = asyncHandler(enhancedContactUserByEmail);
 
 
 // Notification handlers

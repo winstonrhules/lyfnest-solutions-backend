@@ -2,7 +2,7 @@ const dotenv = require('dotenv').config();
 const express = require('express');
 const DBconnect = require('./config/DBconnect');
 const http = require('http');
-
+const {ZoomService} = require('./utils/zoomService');
 const app = express();
 
 const path = require('path');
@@ -44,6 +44,9 @@ DBconnect();
 
 const socketIo = require('socket.io');
 const server = http.createServer(app);
+
+const zoomService = new ZoomService();
+zoomService.startPolling();
 
 // Enhanced CORS configuration
 const io = socketIo(server, {

@@ -27,9 +27,17 @@ const appointmentSchema = new mongoose.Schema({
     }
   },
   zoomMeeting: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'ZoomMeeting'
+    id: String,
+    meetingId:String,
+    topic:String,
+    startTime:Date,
+    joinUrl:String,
+    startUrl:String,
+    registrationUrl:String,
+    password:String,
+    createdAt:Date
   },
+  
   contactWindowStart: {
     type: Date,
     required: true
