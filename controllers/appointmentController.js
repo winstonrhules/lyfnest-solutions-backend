@@ -612,34 +612,102 @@ const rescheduleAppointment = asyncHandler(async (req, res) => {
 });
 
 // ✅ ENHANCED: Delete appointment
-const deleteAppointment = asyncHandler(async (req, res) => {
+// Enhanced delete appointment function that also deletes Zoom meeting
+const deleteAppointmentWithZoom = async (req, res) => {
   try {
     const { id } = req.params;
 
+    // Find the appointment with populated Zoom meeting data
     const appointment = await Appointment.findById(id);
     if (!appointment) {
       return res.status(404).json({ error: 'Appointment not found' });
     }
 
+    console.log(`Deleting appointment ${id} and associated Zoom meeting`);
+
+    // Delete Zoom meeting if it exists
+    if (appointment.zoomMeeting && appointment.zoomMeeting.meetingId) {
+      try {
+        const accessToken = await getZoomAccessToken(); // Use your existing function
+        
+        // Delete from Zoom
+        await axios.delete(
+          `https://api.zoom.us/v2/meetings/${appointment.zoomMeeting.meetingId}`,
+          {
+            headers: {
+              'Authorization': `Bearer ${accessToken}`,
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+        
+        console.log(`Zoom meeting ${appointment.zoomMeeting.meetingId} deleted successfully`);
+        
+        // Delete from ZoomMeeting model if you have the reference
+        if (appointment.zoomMeeting.zoomMeetingRecordId) {
+          await ZoomMeeting.findByIdAndDelete(appointment.zoomMeeting.zoomMeetingRecordId);
+          console.log(`ZoomMeeting record ${appointment.zoomMeeting.zoomMeetingRecordId} deleted`);
+        }
+        
+      } catch (zoomError) {
+        console.error('Failed to delete Zoom meeting:', zoomError.response?.data || zoomError.message);
+        // Continue with appointment deletion even if Zoom deletion fails
+      }
+    }
+
+    // Delete the appointment
     await Appointment.findByIdAndDelete(id);
+    console.log(`Appointment ${id} deleted successfully`);
 
     // Emit WebSocket update
     if (req.io) {
       req.io.emit('deleteAppointment', id);
       req.io.to('admins').emit('deleteAppointment', id);
-      console.log(`✅ Appointment ${id} deleted via WebSocket`);
+      console.log(`WebSocket delete event emitted for appointment ${id}`);
     }
 
     res.status(200).json({
       success: true,
-      message: 'Appointment deleted successfully'
+      message: 'Appointment and associated Zoom meeting deleted successfully'
     });
 
   } catch (error) {
-    console.error("Delete Appointment Error:", error);
-    res.status(500).json({ error: 'Failed to delete appointment' });
+    console.error('Delete appointment error:', error);
+    res.status(500).json({ 
+      error: 'Failed to delete appointment',
+      details: error.message
+    });
   }
-});
+};
+
+// const deleteAppointment = asyncHandler(async (req, res) => {
+//   try {
+//     const { id } = req.params;
+
+//     const appointment = await Appointment.findById(id);
+//     if (!appointment) {
+//       return res.status(404).json({ error: 'Appointment not found' });
+//     }
+
+//     await Appointment.findByIdAndDelete(id);
+
+//     // Emit WebSocket update
+//     if (req.io) {
+//       req.io.emit('deleteAppointment', id);
+//       req.io.to('admins').emit('deleteAppointment', id);
+//       console.log(`✅ Appointment ${id} deleted via WebSocket`);
+//     }
+
+//     res.status(200).json({
+//       success: true,
+//       message: 'Appointment deleted successfully'
+//     });
+
+//   } catch (error) {
+//     console.error("Delete Appointment Error:", error);
+//     res.status(500).json({ error: 'Failed to delete appointment' });
+//   }
+// });
 
 // ✅ NEW: Zoom webhook handler for booking status updates
 const handleZoomWebhook = asyncHandler(async (req, res) => {
@@ -842,6 +910,6 @@ module.exports = {
   updateAppointmentStatus,
   markAppointmentCompleted,
   rescheduleAppointment,
-  deleteAppointment,
-  handleZoomWebhook
+  deleteAppointmentWithZoom,
+  handleZoomWebhook,
 };

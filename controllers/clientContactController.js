@@ -5,7 +5,7 @@ const mongoose = require('mongoose');
 // Create new client contact
 const createClientContact = asyncHandler(async (req, res) => {
   try {
-    // Calculate annual review date if not provided
+    // Calculate annual review date if not provided 
     if (!req.body.annualReviewDate && req.body.policyEffectiveDate) {
       const effectiveDate = new Date(req.body.policyEffectiveDate);
       req.body.annualReviewDate = new Date(
@@ -17,7 +17,8 @@ const createClientContact = asyncHandler(async (req, res) => {
 
     const newContact = await ClientContact.create(req.body);
 
-    const assignedSlot = new Date(req.body.policyEffectiveDate)
+    // const assignedSlot = new Date(req.body.policyEffectiveDate)
+    const assignedSlot = new Date();
 
     const contactWindowStart = new Date(assignedSlot);
     contactWindowStart.setHours(contactWindowStart.getHours()-1)
@@ -43,7 +44,7 @@ const createClientContact = asyncHandler(async (req, res) => {
       },
       formId:new mongoose.Types.ObjectId(),
       formData:formData,
-      assignedSlot: req.body.policyEffectiveDate,
+      assignedSlot: req.body.policyEffectiveDate,     
       contactWindowStart:contactWindowStart,
       contactWindowEnd:contactWindowEnd,
       assignedSlot:assignedSlot,
