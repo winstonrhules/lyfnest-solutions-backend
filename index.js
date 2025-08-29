@@ -2,7 +2,7 @@ const dotenv = require('dotenv').config();
 const express = require('express');
 const DBconnect = require('./config/DBconnect');
 const http = require('http');
-const {ZoomService} = require('./utils/zoomService');
+const {syncZoomMeetings} = require('./utils/zoomService');
 const app = express();
 
 const path = require('path');
@@ -45,8 +45,14 @@ DBconnect();
 const socketIo = require('socket.io');
 const server = http.createServer(app);
 
-const zoomService = new ZoomService();
-zoomService.startPolling();
+setInterval(() => {
+  try {
+    syncZoomMeetings();
+  } catch (error) {
+    console.error("Error synchronizing Zoom meetings:", error);
+  }
+}, 5 * 60 * 1000); // Sync every 5 minutes
+console.log("Zoom meetings synchronized");
 
 // Enhanced CORS configuration
 const io = socketIo(server, {

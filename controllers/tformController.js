@@ -1226,7 +1226,6 @@
 //   contactUserByEmail,
 // };
 
-
 const twilio = require('twilio');
 const Verification = require('../models/verificationModels');
 const Tform = require('../models/tformModels');
@@ -1237,7 +1236,7 @@ const EmailVerification = require('../models/emailVerificationsModels');
 const Notification = require('../models/notificationModels');
 const User = require("../models/userModels");
 const { SESClient, SendEmailCommand } = require("@aws-sdk/client-ses");
-const ZoomService = require('../utils/zoomService');
+const {enhancedContactUserByEmail} = require('../utils/zoomService');
 
 // Initialize SES client
 const sesClient = new SESClient({
@@ -1256,9 +1255,9 @@ const client = twilio(
 
 // Security constants
 const VERIFICATION_EXPIRY_MINUTES = 10;
-const VERIFICATION_WINDOW_MINUTES = 60;
+const VERIFICATION_WINDOW_MINUTES = 30;
 const MAX_ATTEMPTS = 3;
-const CONTACT_WINDOW_START = 24; // hours
+const CONTACT_WINDOW_START = 2; // hours
 const CONTACT_WINDOW_END = 48;   // hours
 const SLOT_DURATION = 30;        // minutes
 
@@ -1270,12 +1269,12 @@ const isValidEmail = (email) => /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4
 
 const scheduleAppointment = async () => {
   try {
-    const now = new Date();
+    
 
     // Set a stable starting point for scheduling
-    const contactWindowStart = new Date(now.getTime() + CONTACT_WINDOW_START * 60 * 60 * 1000);
-    const contactWindowEnd = new Date(now.getTime() + CONTACT_WINDOW_END * 60 * 60 * 1000);
-
+    const now = new Date();
+    const contactWindowStart = new Date(now);
+     const contactWindowEnd = new Date(now.getTime() + CONTACT_WINDOW_END * 60 * 60 * 1000);
     // Query for ALL future appointments to avoid conflicts
     const existingAppointments = await Appointment.find({
       assignedSlot: { $gte: now }
@@ -1321,7 +1320,7 @@ const scheduleAppointment = async () => {
       (CONTACT_WINDOW_END - CONTACT_WINDOW_START) * 60 * 60 * 1000
     );
     return {
-      contactWindowStart: new Date(now.getTime() + CONTACT_WINDOW_START * 60 * 60 * 1000),
+      contactWindowStart: new Date(now),
       contactWindowEnd: new Date(now.getTime() + CONTACT_WINDOW_END * 60 * 60 * 1000),
       assignedSlot: new Date(now.getTime() + CONTACT_WINDOW_START * 60 * 60 * 1000 + randomOffset)
     };
@@ -2070,263 +2069,265 @@ const deleteForm = asyncHandler(async (req, res) => {
 //   }
 // });
 
-const enhancedContactUserByEmail = async (req, res) => {
-  try {
-    const { 
-      appointmentId, 
-      userEmail, 
-      userName, 
-      subject, 
-      message,
-      adminName,
-      contactMethod = 'email'
-    } = req.body;
+// const enhancedContactUserByEmail = async (req, res) => {
+//   try {
+//     const { 
+//       appointmentId, 
+//       userEmail, 
+//       userName, 
+//       subject, 
+//       message,
+//       adminName,
+//       contactMethod = 'email'
+//     } = req.body;
 
-    // Validation
-    if (!appointmentId || !userEmail || !userName) {
-      return res.status(400).json({ 
-        success: false,
-        error: 'Missing required fields: appointmentId, userEmail, userName' 
-      });
-    }
+//     // Validation
+//     if (!appointmentId || !userEmail || !userName) {
+//       return res.status(400).json({ 
+//         success: false,
+//         error: 'Missing required fields: appointmentId, userEmail, userName' 
+//       });
+//     }
 
-    // Find the appointment
-    const appointment = await Appointment.findById(appointmentId).populate('formId');
-    if (!appointment) {
-      return res.status(404).json({ success: false, error: 'Appointment not found' });
-    }
+//     // Find the appointment
+//     const appointment = await Appointment.findById(appointmentId).populate('formId');
+//     if (!appointment) {
+//       return res.status(404).json({ success: false, error: 'Appointment not found' });
+//     }
 
-    // ✅ CREATE ZOOM MEETING when sending scheduler link
-    const zoomService = new ZoomService();
-    let zoomMeeting = null;
+//     // ✅ CREATE ZOOM MEETING when sending scheduler link
+//     const zoomService = new ZoomService();
+//     let zoomMeeting = null;
     
-    try {
-      // Create Zoom meeting
-      const meetingData = await zoomService.createMeeting({
-        user: {
-          firstName: userName.split(' ')[0] || 'Client',
-          lastName: userName.split(' ')[1] || '',
-          email: userEmail
-        },
-        assignedSlot: appointment.assignedSlot,
-        formType: appointment.formType || 'consultation'
-      });
+//     try {
+//       // Create Zoom meeting
+//       const meetingData = await zoomService.createMeeting({
+//         user: {
+//           firstName: userName.split(' ')[0] || 'Client',
+//           lastName: userName.split(' ')[1] || '',
+//           email: userEmail
+//         },
+//         assignedSlot: appointment.assignedSlot,
+//         formType: appointment.formType || 'consultation'
+//       });
 
-      zoomMeeting = {
-        id: meetingData.id,
-        meetingId: meetingData.id,
-        topic: meetingData.topic,
-        startTime: meetingData.start_time,
-        joinUrl: meetingData.join_url,
-        startUrl: meetingData.start_url,
-        registrationUrl: meetingData.registration_url,
-        password: meetingData.password,
-        createdAt: new Date()
-      };
+//       zoomMeeting = {
+//         id: meetingData.id,
+//         meetingId: meetingData.id,
+//         topic: meetingData.topic,
+//         startTime: meetingData.start_time,
+//         joinUrl: meetingData.join_url,
+//         startUrl: meetingData.start_url,
+//         registrationUrl: meetingData.registration_url,
+//         password: meetingData.password,
+//         createdAt: new Date()
+//       };
 
-      console.log('✅ Zoom meeting created for appointment:', appointmentId);
-    } catch (zoomError) {
-      console.error('❌ Failed to create Zoom meeting:', zoomError);
-      // Continue without Zoom meeting
-    }
+//       console.log('✅ Zoom meeting created for appointment:', appointmentId);
+//     } catch (zoomError) {
+//       console.error('❌ Failed to create Zoom meeting:', zoomError);
+//       // Continue without Zoom meeting
+//     }
 
-    // Get form details
-    let formData = null;
-    if (appointment.formType === 'termForm' && appointment.formId) {
-      formData = appointment.formId;
-    }
+//     // Get form details
+//     let formData = null;
+//     if (appointment.formType === 'termForm' && appointment.formId) {
+//       formData = appointment.formId;
+//     }
     
-    // Create scheduler link with Zoom meeting registration
-    const schedulerLink = zoomMeeting ? zoomMeeting.registrationUrl : process.env.ZOOM_URL;
+//     // Create scheduler link with Zoom meeting registration
+//     const schedulerLink = zoomMeeting ? zoomMeeting.registrationUrl : process.env.ZOOM_URL;
     
-    // Default subject and message with Zoom integration
-    const emailSubject = subject || `Schedule Your Financial Consultation - LyfNest Solutions`;
+//     // Default subject and message with Zoom integration
+//     const emailSubject = subject || `Schedule Your Financial Consultation - LyfNest Solutions`;
     
-    const defaultMessage = `Hi ${userName},
+//     const defaultMessage = `Hi ${userName},
 
-Thank you for submitting your request! I'm following up to schedule your financial consultation.
+// Thank you for submitting your request! I'm following up to schedule your financial consultation.
 
-${zoomMeeting ? 
-  `Please use the link below to register for your Zoom meeting and pick a time that works best for you:
-${schedulerLink}
+// ${zoomMeeting ? 
+//   `Please use the link below to register for your Zoom meeting and pick a time that works best for you:
+// ${schedulerLink}
 
-This will be a secure Zoom meeting where we can discuss your financial needs in detail.` :
-  `Please use the link below to pick a time that works best for you:
-${schedulerLink}`}
+// This will be a secure Zoom meeting where we can discuss your financial needs in detail.` :
+//   `Please use the link below to pick a time that works best for you:
+// ${schedulerLink}`}
 
-${formData ? `Based on your submitted information:
-${formData.coverageAmount ? `• Coverage Amount: ${formData.coverageAmount}\n` : ''}
-${formData.preferredTerm ? `• Preferred Term: ${formData.preferredTerm}\n` : ''}
-` : ''}
+// ${formData ? `Based on your submitted information:
+// ${formData.coverageAmount ? `• Coverage Amount: ${formData.coverageAmount}\n` : ''}
+// ${formData.preferredTerm ? `• Preferred Term: ${formData.preferredTerm}\n` : ''}
+// ` : ''}
 
-Once you ${zoomMeeting ? 'register and confirm' : 'schedule'} your preferred time, I'll receive a notification and we'll be all set for our meeting.
+// Once you ${zoomMeeting ? 'register and confirm' : 'schedule'} your preferred time, I'll receive a notification and we'll be all set for our meeting.
 
-Best regards,
-${adminName || 'LyfNest Solutions Team'}
-Email: ${process.env.SES_SENDER_EMAIL}`;
+// Best regards,
+// ${adminName || 'LyfNest Solutions Team'}
+// Email: ${process.env.SES_SENDER_EMAIL}`;
 
-    const emailMessage = message || defaultMessage;
+//     const emailMessage = message || defaultMessage;
 
-    // Send email with Zoom meeting link
-    const { SESClient, SendEmailCommand } = require("@aws-sdk/client-ses");
+//     // Send email with Zoom meeting link
+//     const { SESClient, SendEmailCommand } = require("@aws-sdk/client-ses");
     
-    const sesClient = new SESClient({
-      region: process.env.AWS_REGION,
-      credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
-      }
-    });
+//     const sesClient = new SESClient({
+//       region: process.env.AWS_REGION,
+//       credentials: {
+//         accessKeyId: process.env.AWS_ACCESS_KEY_ID,
+//         secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY
+//       }
+//     });
 
-    const params = {
-      Destination: { ToAddresses: [userEmail] },
-      Message: {
-        Body: {
-          Html: {
-            Charset: "UTF-8",
-            Data: `
-              <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-                <div style="background: #a4dcd7; color: white; padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
-                  <img src="https://res.cloudinary.com/dma2ht84k/image/upload/v1753279441/lyfnest-logo_byfywb.png" alt="LyfNest Solutions Logo" style="width: 50px; height: 50px; margin-bottom: 10px;">
-                  <h2 style="margin: 0;">${zoomMeeting ? 'Join Your Zoom Consultation' : 'Schedule Your Consultation'}</h2>
-                </div>
+//     const params = {
+//       Destination: { ToAddresses: [userEmail] },
+//       Message: {
+//         Body: {
+//           Html: {
+//             Charset: "UTF-8",
+//             Data: `
+//               <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+//                 <div style="background: #a4dcd7; color: white; padding: 30px; border-radius: 10px 10px 0 0; text-align: center;">
+//                   <img src="https://res.cloudinary.com/dma2ht84k/image/upload/v1753279441/lyfnest-logo_byfywb.png" alt="LyfNest Solutions Logo" style="width: 50px; height: 50px; margin-bottom: 10px;">
+//                   <h2 style="margin: 0;">${zoomMeeting ? 'Join Your Zoom Consultation' : 'Schedule Your Consultation'}</h2>
+//                 </div>
               
-                <div style="background: #ffffff; padding: 30px; border: 1px solid #e0e0e0; border-top: none;">
-                  <div style="white-space: pre-line; line-height: 1.6; color: #333;">
-                    ${emailMessage.replace(/\n/g, '<br>')}
-                  </div>
+//                 <div style="background: #ffffff; padding: 30px; border: 1px solid #e0e0e0; border-top: none;">
+//                   <div style="white-space: pre-line; line-height: 1.6; color: #333;">
+//                     ${emailMessage.replace(/\n/g, '<br>')}
+//                   </div>
                   
-                  <div style="text-align: center; margin: 30px 0;">
-                    <a href="${schedulerLink}" 
-                       style="background: ${zoomMeeting ? '#0070f3' : '#4caf50'}; 
-                              color: white; 
-                              padding: 15px 30px; 
-                              text-decoration: none; 
-                              border-radius: 5px;
-                              font-weight: bold;
-                              font-size: 16px;
-                              display: inline-block;">
-                      ${zoomMeeting ? '🎥 Register for Zoom Meeting' : '📅 Schedule My Meeting'}
-                    </a>
-                  </div>
+//                   <div style="text-align: center; margin: 30px 0;">
+//                     <a href="${schedulerLink}" 
+//                        style="background: ${zoomMeeting ? '#0070f3' : '#4caf50'}; 
+//                               color: white; 
+//                               padding: 15px 30px; 
+//                               text-decoration: none; 
+//                               border-radius: 5px;
+//                               font-weight: bold;
+//                               font-size: 16px;
+//                               display: inline-block;">
+//                       ${zoomMeeting ? '🎥 Register for Zoom Meeting' : '📅 Schedule My Meeting'}
+//                     </a>
+//                   </div>
                   
-                  ${zoomMeeting ? `
-                  <div style="background: #e3f2fd; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #2196f3;">
-                    <h3 style="color: #1976d2; margin-top: 0;">Zoom Meeting Details:</h3>
-                    <ul style="color: #555; margin: 10px 0;">
-                      <li><strong>Meeting ID:</strong> ${zoomMeeting.meetingId}</li>
-                      <li><strong>Topic:</strong> ${zoomMeeting.topic}</li>
-                      <li><strong>Scheduled Time:</strong> ${new Date(appointment.assignedSlot).toLocaleString()}</li>
-                    </ul>
-                    <p style="color: #666; font-size: 14px; margin-top: 15px;">
-                      After registration, you'll receive a confirmation email with the meeting link and details.
-                    </p>
-                  </div>
-                  ` : ''}
+//                   ${zoomMeeting ? `
+//                   <div style="background: #e3f2fd; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #2196f3;">
+//                     <h3 style="color: #1976d2; margin-top: 0;">Zoom Meeting Details:</h3>
+//                     <ul style="color: #555; margin: 10px 0;">
+//                       <li><strong>Meeting ID:</strong> ${zoomMeeting.meetingId}</li>
+//                       <li><strong>Topic:</strong> ${zoomMeeting.topic}</li>
+//                       <li><strong>Scheduled Time:</strong> ${new Date(appointment.assignedSlot).toLocaleString()}</li>
+//                     </ul>
+//                     <p style="color: #666; font-size: 14px; margin-top: 15px;">
+//                       After registration, you'll receive a confirmation email with the meeting link and details.
+//                     </p>
+//                   </div>
+//                   ` : ''}
                   
-                  ${formData ? `
-                  <div style="background: #f8f9fa; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #4caf50;">
-                    <h3 style="color: #2e7d32; margin-top: 0;">Your Inquiry Details:</h3>
-                    <ul style="color: #555; margin: 10px 0;">
-                      ${formData.coverageAmount ? `<li><strong>Coverage Amount:</strong> ${formData.coverageAmount}</li>` : ''}
-                      ${formData.preferredTerm ? `<li><strong>Preferred Term:</strong> ${formData.preferredTerm}</li>` : ''}
-                      ${formData.phoneNumber ? `<li><strong>Phone:</strong> ${formData.phoneNumber}</li>` : ''}
-                    </ul>
-                  </div>
-                  ` : ''}
-                </div>
+//                   ${formData ? `
+//                   <div style="background: #f8f9fa; padding: 20px; margin: 20px 0; border-radius: 8px; border-left: 4px solid #4caf50;">
+//                     <h3 style="color: #2e7d32; margin-top: 0;">Your Inquiry Details:</h3>
+//                     <ul style="color: #555; margin: 10px 0;">
+//                       ${formData.coverageAmount ? `<li><strong>Coverage Amount:</strong> ${formData.coverageAmount}</li>` : ''}
+//                       ${formData.preferredTerm ? `<li><strong>Preferred Term:</strong> ${formData.preferredTerm}</li>` : ''}
+//                       ${formData.phoneNumber ? `<li><strong>Phone:</strong> ${formData.phoneNumber}</li>` : ''}
+//                     </ul>
+//                   </div>
+//                   ` : ''}
+//                 </div>
                 
-                <div style="background: #f5f5f5; padding: 20px; text-align: center; border-radius: 0 0 10px 10px;">
-                  <p style="margin: 0; color: #666; font-size: 14px;">
-                    <strong>LyfNest Solutions</strong><br>
-                    Email: ${process.env.SES_SENDER_EMAIL}
-                  </p>
-                </div>
-              </div>
-            `
-          },
-          Text: {
-            Charset: "UTF-8",
-            Data: `${emailMessage}\n\n${zoomMeeting ? 'Register for meeting' : 'Schedule your meeting'}: ${schedulerLink}`
-          }
-        },
-        Subject: {
-          Charset: "UTF-8",
-          Data: emailSubject
-        }
-      },
-      Source: process.env.SES_SENDER_EMAIL
-    };
+//                 <div style="background: #f5f5f5; padding: 20px; text-align: center; border-radius: 0 0 10px 10px;">
+//                   <p style="margin: 0; color: #666; font-size: 14px;">
+//                     <strong>LyfNest Solutions</strong><br>
+//                     Email: ${process.env.SES_SENDER_EMAIL}
+//                   </p>
+//                 </div>
+//               </div>
+//             `
+//           },
+//           Text: {
+//             Charset: "UTF-8",
+//             Data: `${emailMessage}\n\n${zoomMeeting ? 'Register for meeting' : 'Schedule your meeting'}: ${schedulerLink}`
+//           }
+//         },
+//         Subject: {
+//           Charset: "UTF-8",
+//           Data: emailSubject
+//         }
+//       },
+//       Source: process.env.SES_SENDER_EMAIL
+//     };
 
-    // Send the email
-    let emailSent = false;
-    try {
-      await sesClient.send(new SendEmailCommand(params));
-      console.log('✅ Email sent successfully to:', userEmail);
-      emailSent = true;
-    } catch (emailError) {
-      console.error('❌ Email sending failed:', emailError);
-      return res.status(500).json({ 
-        success: false,
-        message: 'Failed to send scheduler email',
-        error: emailError.message 
-      });
-    }
+//     // Send the email
+//     let emailSent = false;
+//     try {
+//       await sesClient.send(new SendEmailCommand(params));
+//       console.log('✅ Email sent successfully to:', userEmail);
+//       emailSent = true;
+//     } catch (emailError) {
+//       console.error('❌ Email sending failed:', emailError);
+//       return res.status(500).json({ 
+//         success: false,
+//         message: 'Failed to send scheduler email',
+//         error: emailError.message 
+//       });
+//     }
 
-    // ✅ Update appointment with Zoom meeting and contacted status
-    const updateData = {
-      status: 'contacted',
-      lastContactDate: new Date(),
-      contactMethod: contactMethod,
-      contactedBy: adminName || 'Admin'
-    };
+//     // ✅ Update appointment with Zoom meeting and contacted status
+//     const updateData = {
+//       status: 'contacted',
+//       lastContactDate: new Date(),
+//       contactMethod: contactMethod,
+//       contactedBy: adminName || 'Admin'
+//     };
 
-    if (zoomMeeting) {
-      updateData.zoomMeeting = zoomMeeting;
-    }
+//     if (zoomMeeting) {
+//       updateData.zoomMeeting = zoomMeeting;
+//     }
 
-    const updatedAppointment = await Appointment.findByIdAndUpdate(
-      appointmentId,
-      updateData,
-      { new: true }
-    ).populate('formId').lean();
+//     const updatedAppointment = await Appointment.findByIdAndUpdate(
+//       appointmentId,
+//       updateData,
+//       { new: true }
+//     ).populate('formId').lean();
 
-    // ✅ EMIT WEBSOCKET UPDATE EVENT IMMEDIATELY
-    if (req.io) {
-      try {
-        const appointmentWithUser = await zoomService.enrichAppointmentWithUser(updatedAppointment);
+//     // ✅ EMIT WEBSOCKET UPDATE EVENT IMMEDIATELY
+//     if (req.io) {
+//       try {
+//         const appointmentWithUser = await zoomService.enrichAppointmentWithUser(updatedAppointment);
         
-        req.io.emit('updateAppointment', appointmentWithUser);
-        req.io.to('admins').emit('updateAppointment', appointmentWithUser);
-        console.log('✅ WebSocket update event emitted for appointment:', appointmentId);
-      } catch (wsError) {
-        console.error('❌ WebSocket emission failed:', wsError);
-      }
-    }
+//         req.io.emit('updateAppointment', appointmentWithUser);
+//         req.io.to('admins').emit('updateAppointment', appointmentWithUser);
+//         console.log('✅ WebSocket update event emitted for appointment:', appointmentId);
+//       } catch (wsError) {
+//         console.error('❌ WebSocket emission failed:', wsError);
+//       }
+//     }
 
-    res.status(200).json({
-      success: true,
-      message: zoomMeeting ? 'Zoom meeting created and scheduler link sent successfully' : 'Scheduler link sent successfully',
-      appointment: updatedAppointment,
-      zoomMeeting: zoomMeeting,
-      appointmentId,
-      contactMethod: 'email',
-      sentAt: new Date(),
-      recipient: userEmail,
-      schedulerLink: schedulerLink,
-      emailSent: emailSent,
-      statusUpdated: true
-    });
+//     res.status(200).json({
+//       success: true,
+//       message: zoomMeeting ? 'Zoom meeting created and scheduler link sent successfully' : 'Scheduler link sent successfully',
+//       appointment: updatedAppointment,
+//       zoomMeeting: zoomMeeting,
+//       appointmentId,
+//       contactMethod: 'email',
+//       sentAt: new Date(),
+//       recipient: userEmail,
+//       schedulerLink: schedulerLink,
+//       emailSent: emailSent,
+//       statusUpdated: true
+//     });
 
-  } catch (error) {
-    console.error("❌ Enhanced Contact Email Error:", error);
-    res.status(500).json({ 
-      success: false,
-      message: 'Failed to send contact email',
-      error: error.message 
-    });
-  }
-};
+//   } catch (error) {
+//     console.error("❌ Enhanced Contact Email Error:", error);
+//     res.status(500).json({ 
+//       success: false,
+//       message: 'Failed to send contact email',
+//       error: error.message 
+//     });
+//   }
+// };
+
+
 const contactUserByEmail = asyncHandler(enhancedContactUserByEmail);
 
 
@@ -2377,31 +2378,31 @@ const deleteANotifs = asyncHandler(async (req, res) => {
 });
 
 // MARK APPOINTMENTS AS MISSED (CRON JOB)
-const markMissedAppointments = async () => {
-  try {
-    const now = new Date();
-    const result = await Appointment.updateMany(
-      {
-        status: 'booked',
-        assignedSlot: { $lt: now }
-      },
-      {
-        $set: { status: 'missed' }
-      }
-    );
-    console.log(`✅ Marked ${result.nModified} appointments as missed`);
+// const markMissedAppointments = async () => {
+//   try {
+//     const now = new Date();
+//     const result = await Appointment.updateMany(
+//       {
+//         status: 'booked',
+//         assignedSlot: { $lt: now }
+//       },
+//       {
+//         $set: { status: 'missed' }
+//       }
+//     );
+//     console.log(`✅ Marked ${result.nModified} appointments as missed`);
     
-    // Emit refresh event if any appointments were updated
-    if (result.nModified > 0 && global.io) {
-      global.io.emit('refreshAppointments');
-    }
-  } catch (error) {
-    console.error('❌ Error marking missed appointments:', error);
-  }
-};
+//     // Emit refresh event if any appointments were updated
+//     if (result.nModified > 0 && global.io) {
+//       global.io.emit('refreshAppointments');
+//     }
+//   } catch (error) {
+//     console.error('❌ Error marking missed appointments:', error);
+//   }
+// };
 
-// Run every 30 minutes
-setInterval(markMissedAppointments, 30 * 60 * 1000);
+// // Run every 30 minutes
+// setInterval(markMissedAppointments, 30 * 60 * 1000);
 
 module.exports = {
   initialVerificationChecks, 
