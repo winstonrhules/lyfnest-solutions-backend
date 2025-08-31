@@ -631,7 +631,7 @@ const deleteANotifs = asyncHandler(async (req, res) => {
   }
 });
 
-const contactUserByEmail = asyncHandler(universalContactUserByEmail);
+
 
 // const contactUserByEmail = asyncHandler(async (req, res) => {
 //   try {
@@ -811,7 +811,7 @@ module.exports = {
   createNotifs,
   deleteNotifs,
   deleteANotifs,
-  contactUserByEmail
+  contactUserByEmail: universalContactUserByEmail
 };
 
 
