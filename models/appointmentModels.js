@@ -79,7 +79,7 @@ const appointmentSchema = new mongoose.Schema({
 
   policyType: {
   type: String,
-  enum: ['IUL', 'WL', 'Term', 'Final Expense'],
+  enum: ['IUL', 'WL', 'Term', 'Final Expense', 'Other'],
   required: true
 },
 
