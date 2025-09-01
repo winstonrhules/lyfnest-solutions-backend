@@ -8,7 +8,7 @@ const EmailVerification = require('../models/emailVerificationsModels');
 const Notification = require('../models/notificationModels');
 const User = require("../models/userModels");
 const { SESClient, SendEmailCommand } = require("@aws-sdk/client-ses"); 
-const { universalContactUserByEmail} = require('../utils/zoomService');
+const { safeUniversalContactUserByEmail} = require('../utils/zoomService');
 
 const sesClient = new SESClient({
   region: process.env.AWS_REGION,
@@ -640,7 +640,7 @@ const deleteANotifs = asyncHandler(async (req, res) => {
 });
 
 
-const contactUserByEmail = asyncHandler(universalContactUserByEmail);
+const contactUserByEmail = asyncHandler(safeUniversalContactUserByEmail);
 
 
 // const contactUserByEmail = asyncHandler(async (req, res) => {

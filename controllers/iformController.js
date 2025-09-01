@@ -8,7 +8,7 @@ const EmailVerification = require('../models/emailVerificationsModels');
 const Notification = require('../models/notificationModels');
 const User = require("../models/userModels");
 const { SESClient, SendEmailCommand } = require("@aws-sdk/client-ses"); 
-const { universalContactUserByEmail} = require('../utils/zoomService');
+const { safeUniversalContactUserByEmail} = require('../utils/zoomService');
 
 
 // Initialize SES client
@@ -595,7 +595,7 @@ const deleteForm = asyncHandler(async (req, res) => {
 })
 
 
-const contactUserByEmail = asyncHandler(universalContactUserByEmail);
+const contactUserByEmail = asyncHandler(safeUniversalContactUserByEmail);
 
 
 

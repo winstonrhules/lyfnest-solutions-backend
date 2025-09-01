@@ -8,7 +8,7 @@ const EmailVerification = require('../models/emailVerificationsModels');
 const Notification = require('../models/notificationModels');
 const User = require("../models/userModels");
 const { SESClient, SendEmailCommand } = require("@aws-sdk/client-ses");
-const { universalContactUserByEmail} = require('../utils/zoomService');
+const { safeUniversalContactUserByEmail} = require('../utils/zoomService');
 
 // Initialize SES client
 const sesClient = new SESClient({
@@ -41,8 +41,6 @@ const isValidEmail = (email) => /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,4
 
 const scheduleAppointment = async () => {
   try {
-    
-
     // Set a stable starting point for scheduling
     const now = new Date();
     const contactWindowStart = new Date(now);
@@ -591,7 +589,7 @@ const deleteForm = asyncHandler(async (req, res) => {
 })
 
 
-const contactUserByEmail = asyncHandler(universalContactUserByEmail);
+const contactUserByEmail = asyncHandler(safeUniversalContactUserByEmail);
  
 
 // Notification handlers
