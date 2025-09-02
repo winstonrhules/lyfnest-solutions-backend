@@ -664,101 +664,106 @@ const processUpcomingMeetings = async (meetings, accessToken) => {
   }
 };
 
-// NEW: Process past meetings for completion detection
 const processPastMeetings = async (pastMeetings, accessToken) => {
   console.log('Processing past meetings for completion detection...');
-  
+
   for (const meeting of pastMeetings) {
     try {
       const meetingStartTime = new Date(meeting.start_time);
       if (isNaN(meetingStartTime.getTime())) continue;
 
-      // Only process meetings from the last 7 days
       const sevenDaysAgo = new Date();
       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-      
       if (meetingStartTime < sevenDaysAgo) continue;
 
-      // Find appointment with this meeting ID
       const zoomMeeting = await ZoomMeeting.findOne({ meetingId: meeting.id });
-      if (!zoomMeeting) {
-        console.log(`No ZoomMeeting record found for past meeting ${meeting.id}`);
-        continue;
-      }
+      if (!zoomMeeting) continue;
 
       const appointment = await Appointment.findById(zoomMeeting.appointment).populate('formId');
-      if (!appointment) {
-        console.log(`No appointment found for ZoomMeeting ${zoomMeeting._id}`);
-        continue;
-      }
+      if (!appointment) continue;
 
-      // Skip if already completed or missed
-      if (appointment.status === 'completed' || appointment.status === 'missed') {
-        continue;
-      }
+      if (['completed', 'missed'].includes(appointment.status)) continue;
 
-      console.log(`Checking completion status for past meeting ${meeting.id}, appointment ${appointment._id}`);
+      console.log(`Checking past meeting ${meeting.id} for appointment ${appointment._id}`);
 
-      // Get meeting participants to determine if it was attended
       let wasCompleted = false;
+      let participants = [];   
+
       try {
+        // Fetch participants
         const participantsResponse = await axios.get(
           `https://api.zoom.us/v2/past_meetings/${meeting.id}/participants`,
           { headers: { Authorization: `Bearer ${accessToken}` } }
         );
-
-        const participants = participantsResponse.data.participants || [];
-        console.log(`Meeting ${meeting.id} had ${participants.length} participants`);
-
-        if (participants.length === 0) {
-          // No participants = definitely missed
-          wasCompleted = false;
-          console.log(`Meeting ${meeting.id} marked as MISSED - No participants joined`);
-        } else if (participants.length === 1) {
-          // Only host joined = missed (client didn't show up)
-          wasCompleted = false;
-          console.log(`Meeting ${meeting.id} marked as MISSED - Only host joined (${participants[0].name}, duration: ${participants[0].duration} min)`);
-        } else {
-          // Multiple participants - check if it was a real meeting
-          // Filter out very short durations (less than 1 minute = accidental joins)
-          const meaningfulParticipants = participants.filter(p => p.duration >= 1);
-          
-          // Consider completed if:
-          // 1. At least 2 meaningful participants (host + client both stayed 1+ min)
-          // 2. At least one participant stayed longer than 3 minutes (actual conversation)
-          const hasMultipleMeaningfulParticipants = meaningfulParticipants.length >= 2;
-          const hasSubstantialParticipation = participants.some(p => p.duration >= 3);
-          
-          wasCompleted = hasMultipleMeaningfulParticipants && hasSubstantialParticipation;
-          
-          const maxDuration = Math.max(...participants.map(p => p.duration), 0);
-          console.log(`Meeting ${meeting.id} completion status: ${wasCompleted ? 'COMPLETED' : 'MISSED'}`);
-          console.log(`  - Total participants: ${participants.length}`);
-          console.log(`  - Meaningful participants (1+ min): ${meaningfulParticipants.length}`);
-          console.log(`  - Max duration: ${maxDuration} minutes`);
-          console.log(`  - Participant details: ${participants.map(p => `${p.name}(${p.duration}min)`).join(', ')}`);
-        }
+        participants = participantsResponse.data.participants || [];
         
-      } catch (participantError) {
-        console.error(`Failed to get participants for meeting ${meeting.id}:`, participantError.response?.data || participantError.message);
-        
-        // Fallback: Check meeting duration from the meeting object
-        const meetingDuration = meeting.duration || 0;
-        
-        // Be more conservative with fallback - only mark completed if meeting lasted 5+ minutes
-        if (meetingDuration === 0) {
-          wasCompleted = false;
-          console.log(`Using fallback: Meeting ${meeting.id} marked as MISSED - 0 duration`);
-        } else if (meetingDuration < 5) {
-          wasCompleted = false;
-          console.log(`Using fallback: Meeting ${meeting.id} marked as MISSED - Short duration (${meetingDuration} minutes)`);
-        } else {
-          wasCompleted = true;
-          console.log(`Using fallback: Meeting ${meeting.id} marked as COMPLETED - Long duration (${meetingDuration} minutes)`);
-        }
+        console.log(`Meeting ${meeting.id} participants data retrieved: ${participants.length} participants`);
+      } catch (err) {
+        console.warn(`No participants data for meeting ${meeting.id} (${err.response?.status}: ${err.response?.data?.message || err.message})`);
       }
 
-      // Update appointment status
+      // CORRECTED LOGIC
+      if (participants.length === 0) {
+        // NO PARTICIPANTS = ALWAYS MISSED
+        // This means either:
+        // 1. Nobody joined at all
+        // 2. Zoom couldn't track participants (technical issue)
+        // Either way, it's safer to mark as missed
+        wasCompleted = false;
+        console.log(`Meeting ${meeting.id} marked as MISSED - No participants joined (duration: ${meeting.duration || 0}m)`);
+        
+      } else if (participants.length === 1) {
+        // ONLY ONE PARTICIPANT = USUALLY MISSED
+        // This typically means only the host joined and waited
+        const singleParticipant = participants[0];
+        
+        // Only mark as completed if the single participant stayed a very long time (10+ minutes)
+        // This might indicate a phone call or different meeting format
+        if (singleParticipant.duration >= 10) {
+          wasCompleted = true;
+          console.log(`Meeting ${meeting.id} marked as COMPLETED - Single participant stayed ${singleParticipant.duration} minutes (assuming phone meeting)`);
+        } else {
+          wasCompleted = false;
+          console.log(`Meeting ${meeting.id} marked as MISSED - Only one participant: ${singleParticipant.name} (${singleParticipant.duration}m)`);
+        }
+        
+      } else {
+        // MULTIPLE PARTICIPANTS = CHECK ENGAGEMENT
+        // Filter out very brief joins (less than 1 minute = accidental)
+        const meaningful = participants.filter(p => p.duration >= 1);
+        
+        if (meaningful.length < 2) {
+          // Not enough meaningful participants
+          wasCompleted = false;
+          console.log(`Meeting ${meeting.id} marked as MISSED - Not enough meaningful participants (${meaningful.length}/2 required)`);
+          
+        } else {
+          // Check if it was a substantial meeting
+          const hasSubstantialEngagement = meaningful.some(p => p.duration >= 3);
+          
+          if (!hasSubstantialEngagement) {
+            wasCompleted = false;
+            console.log(`Meeting ${meeting.id} marked as MISSED - No substantial engagement (max duration: ${Math.max(...meaningful.map(p => p.duration))}m)`);
+          } else {
+            wasCompleted = true;
+            console.log(`Meeting ${meeting.id} marked as COMPLETED - ${meaningful.length} meaningful participants, max duration: ${Math.max(...meaningful.map(p => p.duration))}m`);
+          }
+        }
+        
+        console.log(`Meeting ${meeting.id} participant breakdown:`);
+        participants.forEach(p => {
+          console.log(`  - ${p.name}: ${p.duration} minutes${p.duration < 1 ? ' (too brief)' : ''}${p.duration >= 3 ? ' (substantial)' : ''}`);
+        });
+      }
+
+      // Additional fallback check for edge cases
+      if (wasCompleted && participants.length === 0) {
+        // Safety check: never mark as completed if no participants
+        wasCompleted = false;
+        console.log(`Safety override: Meeting ${meeting.id} changed to MISSED - Cannot be completed without participants`);
+      }
+
+      // Update appointment
       const newStatus = wasCompleted ? 'completed' : 'missed';
       const updateData = {
         status: newStatus,
@@ -772,29 +777,165 @@ const processPastMeetings = async (pastMeetings, accessToken) => {
         { runValidators: true, new: true }
       ).populate('formId').lean();
 
-      console.log(`Updated appointment ${appointment._id} status to ${newStatus}`);
+      console.log(`✅ Updated appointment ${appointment._id} from '${appointment.status}' to '${newStatus}'`);
 
-      // EMIT WEBSOCKET UPDATE FOR STATUS CHANGE
+      // Emit WebSocket update
       if (global.io && updatedAppointment) {
         const appointmentWithUser = await enrichAppointmentWithUser(updatedAppointment);
         global.io.emit('updateAppointment', appointmentWithUser);
-        console.log(`WebSocket update emitted for ${newStatus} appointment: ${appointment._id}`);
+        console.log(`📡 WebSocket update emitted for appointment ${appointment._id}`);
       }
 
       // Create notification
-      const userData = updatedAppointment.formData || updatedAppointment.formId || {};
+      const userName = (updatedAppointment.formData?.firstName || updatedAppointment.formId?.firstName || 'Client') + 
+                       ' ' + 
+                       (updatedAppointment.formData?.lastName || updatedAppointment.formId?.lastName || '').trim();
+
       await Notification.create({
-        message: `Meeting ${newStatus}: ${userData.firstName || 'Client'} ${userData.lastName || ''} - ${meetingStartTime.toLocaleDateString()} at ${meetingStartTime.toLocaleTimeString()}`,
+        message: `Meeting ${newStatus}: ${userName.trim()} - ${meetingStartTime.toLocaleDateString()} at ${meetingStartTime.toLocaleTimeString()}`,
         formType: updatedAppointment.formType || `meeting_${newStatus}`,
         read: false,
         appointmentId: updatedAppointment._id
       });
 
-    } catch (pastMeetingError) {
-      console.error(`Error processing past meeting ${meeting.id}:`, pastMeetingError.message);
+    } catch (err) {
+      console.error(`❌ Error processing past meeting ${meeting.id}:`, err.message);
     }
   }
 };
+
+
+// NEW: Process past meetings for completion detection
+// const processPastMeetings = async (pastMeetings, accessToken) => {
+//   console.log('Processing past meetings for completion detection...');
+  
+//   for (const meeting of pastMeetings) {
+//     try {
+//       const meetingStartTime = new Date(meeting.start_time);
+//       if (isNaN(meetingStartTime.getTime())) continue;
+
+//       // Only process meetings from the last 7 days
+//       const sevenDaysAgo = new Date();
+//       sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+      
+//       if (meetingStartTime < sevenDaysAgo) continue;
+
+//       // Find appointment with this meeting ID
+//       const zoomMeeting = await ZoomMeeting.findOne({ meetingId: meeting.id });
+//       if (!zoomMeeting) {
+//         console.log(`No ZoomMeeting record found for past meeting ${meeting.id}`);
+//         continue;
+//       }
+
+//       const appointment = await Appointment.findById(zoomMeeting.appointment).populate('formId');
+//       if (!appointment) {
+//         console.log(`No appointment found for ZoomMeeting ${zoomMeeting._id}`);
+//         continue;
+//       }
+
+//       // Skip if already completed or missed
+//       if (appointment.status === 'completed' || appointment.status === 'missed') {
+//         continue;
+//       }
+
+//       console.log(`Checking completion status for past meeting ${meeting.id}, appointment ${appointment._id}`);
+
+//       // Get meeting participants to determine if it was attended
+//       let wasCompleted = false;
+//       try {
+//         const participantsResponse = await axios.get(
+//           `https://api.zoom.us/v2/past_meetings/${meeting.id}/participants`,
+//           { headers: { Authorization: `Bearer ${accessToken}` } }
+//         );
+
+//         const participants = participantsResponse.data.participants || [];
+//         console.log(`Meeting ${meeting.id} had ${participants.length} participants`);
+
+//         if (participants.length === 0) {
+//           // No participants = definitely missed
+//           wasCompleted = false;
+//           console.log(`Meeting ${meeting.id} marked as MISSED - No participants joined`);
+//         } else if (participants.length === 1) {
+//           // Only host joined = missed (client didn't show up)
+//           wasCompleted = false;
+//           console.log(`Meeting ${meeting.id} marked as MISSED - Only host joined (${participants[0].name}, duration: ${participants[0].duration} min)`);
+//         } else {
+//           // Multiple participants - check if it was a real meeting
+//           // Filter out very short durations (less than 1 minute = accidental joins)
+//           const meaningfulParticipants = participants.filter(p => p.duration >= 1);
+          
+//           // Consider completed if:
+//           // 1. At least 2 meaningful participants (host + client both stayed 1+ min)
+//           // 2. At least one participant stayed longer than 3 minutes (actual conversation)
+//           const hasMultipleMeaningfulParticipants = meaningfulParticipants.length >= 2;
+//           const hasSubstantialParticipation = participants.some(p => p.duration >= 3);
+          
+//           wasCompleted = hasMultipleMeaningfulParticipants && hasSubstantialParticipation;
+          
+//           const maxDuration = Math.max(...participants.map(p => p.duration), 0);
+//           console.log(`Meeting ${meeting.id} completion status: ${wasCompleted ? 'COMPLETED' : 'MISSED'}`);
+//           console.log(`  - Total participants: ${participants.length}`);
+//           console.log(`  - Meaningful participants (1+ min): ${meaningfulParticipants.length}`);
+//           console.log(`  - Max duration: ${maxDuration} minutes`);
+//           console.log(`  - Participant details: ${participants.map(p => `${p.name}(${p.duration}min)`).join(', ')}`);
+//         }
+        
+//       } catch (participantError) {
+//         console.error(`Failed to get participants for meeting ${meeting.id}:`, participantError.response?.data || participantError.message);
+        
+//         // Fallback: Check meeting duration from the meeting object
+//         const meetingDuration = meeting.duration || 0;
+        
+//         // Be more conservative with fallback - only mark completed if meeting lasted 5+ minutes
+//         if (meetingDuration === 0) {
+//           wasCompleted = false;
+//           console.log(`Using fallback: Meeting ${meeting.id} marked as MISSED - 0 duration`);
+//         } else if (meetingDuration < 5) {
+//           wasCompleted = false;
+//           console.log(`Using fallback: Meeting ${meeting.id} marked as MISSED - Short duration (${meetingDuration} minutes)`);
+//         } else {
+//           wasCompleted = true;
+//           console.log(`Using fallback: Meeting ${meeting.id} marked as COMPLETED - Long duration (${meetingDuration} minutes)`);
+//         }
+//       }
+
+//       // Update appointment status
+//       const newStatus = wasCompleted ? 'completed' : 'missed';
+//       const updateData = {
+//         status: newStatus,
+//         lastUpdated: new Date(),
+//         ...(wasCompleted ? { completedAt: new Date() } : { missedAt: new Date() })
+//       };
+
+//       const updatedAppointment = await Appointment.findByIdAndUpdate(
+//         appointment._id,
+//         updateData,
+//         { runValidators: true, new: true }
+//       ).populate('formId').lean();
+
+//       console.log(`Updated appointment ${appointment._id} status to ${newStatus}`);
+
+//       // EMIT WEBSOCKET UPDATE FOR STATUS CHANGE
+//       if (global.io && updatedAppointment) {
+//         const appointmentWithUser = await enrichAppointmentWithUser(updatedAppointment);
+//         global.io.emit('updateAppointment', appointmentWithUser);
+//         console.log(`WebSocket update emitted for ${newStatus} appointment: ${appointment._id}`);
+//       }
+
+//       // Create notification
+//       const userData = updatedAppointment.formData || updatedAppointment.formId || {};
+//       await Notification.create({
+//         message: `Meeting ${newStatus}: ${userData.firstName || 'Client'} ${userData.lastName || ''} - ${meetingStartTime.toLocaleDateString()} at ${meetingStartTime.toLocaleTimeString()}`,
+//         formType: updatedAppointment.formType || `meeting_${newStatus}`,
+//         read: false,
+//         appointmentId: updatedAppointment._id
+//       });
+
+//     } catch (pastMeetingError) {
+//       console.error(`Error processing past meeting ${meeting.id}:`, pastMeetingError.message);
+//     }
+//   }
+// };
 
 // Helper function to enrich appointment with user data (existing)
 const enrichAppointmentWithUser = async (appointment) => {
@@ -829,14 +970,14 @@ const enrichAppointmentWithUser = async (appointment) => {
 
 
 
-module.exports = {
+module.exports = {      
   // universalContactUserByEmail,
-  // syncZoomMeetings,
+  // syncZoomMeetings,  
   safeUniversalContactUserByEmail,  
   syncZoomMeetings: syncZoomMeetingsWithCompletion,
   processUpcomingMeetings, 
-  processPastMeetings,
-  enrichAppointmentWithUser,
+  processPastMeetings,  
+  enrichAppointmentWithUser,   
   getZoomAccessToken,
   // Keep your other existing functions
   getAllZoomMeetings: async (req, res) => {

@@ -673,7 +673,7 @@ const submissionForm = asyncHandler(async (req, res) => {
 //            const emailSubject = subject || `Follow-up from LyfNest Solutions`;
            
 //            const defaultMessage = `Hi ${userName},
-//         Thanks for submitting your request on our website! I’m following up as promised to schedule your zoom call to review your request. Please use the link below to pick a time that works best for you:${finalZoomLink}
+//         Thanks for submitting your request on our website! I’m following up as promised to schedule your zoom call to review your request.
        
 //        ${formData ? `Based on your submitted information, we understand you're interested in:
 //        ${formData.coverage} : 'coverage'}
@@ -725,8 +725,6 @@ const submissionForm = asyncHandler(async (req, res) => {
 //                            <li><strong>Preferred Term:</strong> ${formData.premiumTerms || 'Not specified'}</li>
 //                            <li><strong>Preferred Contact:</strong> ${formData.contactMethod || 'Email'}</li>
 //                            ${formData.phoneNumber ? `<li><strong>Phone:</strong> ${formData.phoneNumber}</li>` : ''}
-                           
-
 //                          </ul>
 //                        </div>
 //                        ` : ''}

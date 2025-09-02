@@ -669,13 +669,12 @@ const contactUserByEmail = asyncHandler(safeUniversalContactUserByEmail);
 //       formData = await Form.findById(appointment.formId);
 //     }
 
-//      const finalZoomLink =  zoomLink;
-    
+     
 //     // Default subject and message if not provided
 //     const emailSubject = subject || `Follow-up from LyfNest Solutions`;
     
 //     const defaultMessage = `Hi ${userName},
-//  Thanks for submitting your request on our website! I’m following up as promised to schedule your zoom call to review your request. Please use the link below to pick a time that works best for you:${finalZoomLink}
+//  Thanks for submitting your request on our website! I’m following up as promised to schedule your zoom call to review your request. 
 
 // ${formData ? `Based on your submitted information, we understand you're interested in:
 // ${formData.coverageType ? formData.coverageType.join(', ') : 'Insurance coverage'}
@@ -712,7 +711,7 @@ const contactUserByEmail = asyncHandler(safeUniversalContactUserByEmail);
 //       </div>
 //       <div style="padding: 30px; font-size: 16px; line-height: 1.6; color: #2f4f4f;">
 //         <p>Hi ${userName},</p>
-//         <p>Thanks for submitting your request on our website! I’m following up as promised to schedule your Zoom call to review your request. Please use the link below to pick a time that works best for you:</p>
+//         <p>Thanks for submitting your request on our website! I’m following up as promised to schedule your Zoom call to review your request.</p>
 
 //         <div style="text-align: center; margin: 30px 0;">
 //           <a href="${finalZoomLink}" style="background-color: #34a853; color: #ffffff; padding: 12px 24px; font-size: 16px; font-weight: bold; border-radius: 8px; text-decoration: none; display: inline-block; box-shadow: 0 3px 6px rgba(0,0,0,0.1);">
