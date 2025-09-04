@@ -414,7 +414,7 @@ const submissionForm = asyncHandler(async (req, res) => {
                   <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                   <h2 style="color: #1a237e;">Submission Confirmed</h2>
                    <p>Thank you for submitting your form to <strong>LyfNest Solutions</strong>!</p>
-                   <p>We've received your information and will contact you between 24-48 hours</p>
+                   <p>We've received your information and will contact you between 24-72 hours</p>
                   <div style="background: #f5f5f5; padding: 20px; margin: 20px 0;">
                   Contact our support team at <a href="mailto:${process.env.SES_SENDER_EMAIL}">${process.env.SES_SENDER_EMAIL}</a>
                   </div>

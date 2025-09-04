@@ -419,7 +419,7 @@ const submissionForm = asyncHandler(async (req, res) => {
                     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
                     <h2 style="color: #1a237e;">Submission Confirmed</h2>
                      <p>Thank you for submitting your form to <strong>LyfNest Solutions</strong>!</p>
-                     <p>We've received your information and will contact you between 24-48 hours</p>
+                     <p>We've received your information and will contact you between 24-72 hours</p>
                     <div style="background: #f5f5f5; padding: 20px; margin: 20px 0;">
                     Contact our support team at <a href="mailto:${process.env.SES_SENDER_EMAIL}">${process.env.SES_SENDER_EMAIL}</a>
                     </div>
@@ -490,7 +490,7 @@ const submissionForm = asyncHandler(async (req, res) => {
                         </div>
                         <div style="background: #f8d7da; padding: 15px; margin: 20px 0;">
                           <p style="margin: 0;">
-                            A new term form submission has been received. Please review it in the admin panel.
+                            A new indexed form submission has been received. Please review it in the admin panel.
                             <p style="background: #dc3545; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px; display: inline-block;">
                               REVIEW SUBMISSION
                             </p>

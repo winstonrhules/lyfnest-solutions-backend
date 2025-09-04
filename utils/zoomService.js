@@ -264,29 +264,30 @@ const safeUniversalContactUserByEmail = async (req, res) => {
       // Use the provided design template
       return `
         <!DOCTYPE html>
-        <html lang="en">
-        <head>
-          <meta charset="UTF-8" />
-          <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-          <title>LyfNest Welcome Email</title>
-          <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600&display=swap" rel="stylesheet" />
-        </head>
-        <body style="margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; background-color: #f3f7f6; color: #333;">
-          <div style="max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #dcebea;">
-            
-            <!-- Banner with overlays -->
-            <div style="background-color: #e1f0ef; position: relative; padding: 20px; overflow: hidden;">
-              <!-- Circle Top Left -->
-              <div style="position: absolute; top: -30px; left: -30px; width: 100px; height: 100px; background: rgba(52, 166, 124, 0.15); border-radius: 50%; z-index: 0;"></div>
-              <!-- Circle Bottom Right -->
-              <div style="position: absolute; bottom: -30px; right: -30px; width: 100px; height: 100px; background: rgba(52, 166, 124, 0.15); border-radius: 50%; z-index: 0;"></div>
-              
-              <!-- Logo and Welcome text -->
-              <img src="https://res.cloudinary.com/dma2ht84k/image/upload/v1753279441/lyfnest-logo_byfywb.png" alt="LyfNest Logo" style="width: 60px; height: auto; position: absolute; top: 20px; left: 20px; z-index: 2;">
-              <h1 style="font-family: 'Poppins', sans-serif; font-size: 28px; font-weight: 600; text-align: center; margin: 0; color: #0e94d0; letter-spacing: 1.5px; position: relative; z-index: 2;">WELCOME!</h1>
-            </div>
+  <html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>LyfNest Welcome Email</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600&display=swap" rel="stylesheet" />
+  </head>
+  <body style="margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; background-color: #f3f7f6; color: #333;">
+    <div style="max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #dcebea;">
+      
+      <!-- Banner with overlays -->
+       <div style="background: linear-gradient(135deg, #e1f0ef 0%, #cfe6e4 100%); position: relative; padding: 20px; overflow: hidden;">
 
-            <div style="padding: 30px; font-size: 16px; line-height: 1.6; color: #2f4f4f;">
+  <!-- Overlay with subtle thin gold lines -->
+  <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-image: repeating-linear-gradient(45deg, rgba(212,175,55,0.25) 0px, rgba(158, 126, 22, 0.25) 1px, transparent 1px, transparent 30px);
+              z-index: 1;">
+  </div>
+        <!-- Logo and Welcome text -->
+        <img src="https://res.cloudinary.com/dma2ht84k/image/upload/v1753279441/lyfnest-logo_byfywb.png" alt="LyfNest Logo" style="width: 60px; height: auto; position: absolute; top: 20px; left: 20px; z-index: 2;">
+        <h1 style="font-family: 'Poppins', sans-serif; font-size: 28px; font-weight: 600; text-align: center; margin: 0; color: #0e94d0; letter-spacing: 1.5px; position: relative; z-index: 2;">WELCOME!</h1>
+      </div>
+
+      <div style="padding: 30px; font-size: 16px; line-height: 1.6; color: #2f4f4f;">
               <p>Hi ${userName},</p>
               <p>Thanks for submitting your request on our website! I'm following up as promised to schedule your Zoom call to review your request. Please use the link below to pick a time that works best for you:</p>
 
