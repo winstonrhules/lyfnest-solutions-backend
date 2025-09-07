@@ -58,4 +58,92 @@
 //   }
 // });
 
-// module.exports = router;
+// module.exports = router;  
+
+
+// routes/emailTemplates.js
+const express = require('express');
+const router = express.Router();
+const EmailTemplate = require('../models/EmailTemplate');
+// const auth = require('../middleware/auth'); // Your authentication middleware
+
+// GET all templates for user
+router.get('/',  async (req, res) => {
+  try {
+    const templates = await EmailTemplate.find({ userId: req.user.id })
+      .sort({ updatedAt: -1 });
+    res.json(templates);
+  } catch (error) {
+    console.error('Error fetching templates:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// POST create new template
+router.post('/',  async (req, res) => {
+  try {
+    const { name, subject, body, templateType, design, tags } = req.body;
+    
+    const template = new EmailTemplate({
+      userId: req.user.id,
+      name,
+      subject,
+      body,
+      templateType,
+      design,
+      tags
+    });
+    
+    await template.save();
+    res.status(201).json(template);
+  } catch (error) {
+    console.error('Error creating template:', error);
+    if (error.name === 'ValidationError') {
+      return res.status(400).json({ message: error.message });
+    }
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// PUT update template
+router.put('/:id',  async (req, res) => {
+  try {
+    const template = await EmailTemplate.findOneAndUpdate(
+      { _id: req.params.id, userId: req.user.id },
+      req.body,
+      { new: true, runValidators: true }
+    );
+    
+    if (!template) {
+      return res.status(404).json({ message: 'Template not found' });
+    }
+    
+    res.json(template);
+  } catch (error) {
+    console.error('Error updating template:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+// DELETE template
+router.delete('/:id',  async (req, res) => {
+  try {
+    const template = await EmailTemplate.findOneAndDelete({
+      _id: req.params.id,
+      userId: req.user.id
+    });
+    
+    if (!template) {
+      return res.status(404).json({ message: 'Template not found' });
+    }
+    
+    res.json({ message: 'Template deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting template:', error);
+    res.status(500).json({ message: 'Server error' });
+  }
+});
+
+module.exports = router;
+
+
