@@ -1,7 +1,7 @@
 // routes/userSettings.js
 const express = require('express');
 const router = express.Router();
-const UserSettings = require('../models/UserSettings');
+const UserSettings = require('../models/userSettingModels');
 // const auth = require('../middleware/auth');
 
 // GET user settings

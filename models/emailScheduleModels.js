@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const scheduledEmailSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,

@@ -21,7 +21,7 @@ const clientContactRouter = require('./routes/clientContactRoutes');
 const zoomRoutes = require('./routes/zoomRoutes');
 const emailTemplateRouter = require('./routes/emailTemplateRoutes');
 const emailScheduleRouter = require('./routes/emailScheduleRoutes');
-const userSettingsRouter = require('./routes/userSettingsRoutes');
+const userSettingRouter = require('./routes/userSettingRoutes');
 
 const Appointment = require('./models/appointmentModels'); // Import the Appointment model
 // Middleware
@@ -238,7 +238,7 @@ app.use('/api/contacts', clientContactRouter);
 app.use('/api/zoom', zoomRoutes);
 app.use('/api/email-templates', emailTemplateRouter);
 app.use('/api/scheduled-emails', emailScheduleRouter);
-app.use('/api/user-settings', userSettingsRouter);
+app.use('/api/user-settings', userSettingRouter);
 
 // 6. Admin Routes - Serve Admin SPA
 const adminPaths = [

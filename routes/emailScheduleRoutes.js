@@ -1,7 +1,7 @@
 // routes/scheduledEmails.js
 const express = require('express');
 const router = express.Router();
-const ScheduledEmail = require('../models/ScheduledEmail');
+const ScheduledEmail = require('../models/emailScheduleModels');
 // const {} = require('../middleware/auth');
 
 // GET all scheduled emails for user

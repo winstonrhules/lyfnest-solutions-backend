@@ -64,7 +64,7 @@
 // routes/emailTemplates.js
 const express = require('express');
 const router = express.Router();
-const EmailTemplate = require('../models/EmailTemplate');
+const EmailTemplate = require('../models/emailTemplateModel');
 // const auth = require('../middleware/auth'); // Your authentication middleware
 
 // GET all templates for user
