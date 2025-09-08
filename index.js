@@ -19,6 +19,9 @@ const fformRouter = require('./routes/fformRoutes');
 const appointmentRouter = require('./routes/appointmentRoutes');
 const clientContactRouter = require('./routes/clientContactRoutes');
 const zoomRoutes = require('./routes/zoomRoutes');
+const emailTemplateRouter = require('./routes/emailTemplateRoutes');
+const emailScheduleRouter = require('./routes/emailScheduleRoutes');
+const userSettingsRouter = require('./routes/userSettingsRoutes');
 
 const Appointment = require('./models/appointmentModels'); // Import the Appointment model
 // Middleware
@@ -30,17 +33,7 @@ const { notFound, errorHandler } = require('./middlewares/errorHandler');
 DBconnect();
 
 
-// const socketIo = require('socket.io');
-// const server = http.createServer(app);
-// const io = socketIo(server, {
-//   cors: {
-//     origin:[process.env.CORS_ORIGIN_FRONT,  process.env.CORS_ORIGIN_LFRONT, process.env.CORS_ORIGIN_ADMIN,  process.env.CORS_ORIGIN_LADMIN],
-//     methods: ["GET", "POST"],
-//     credentials:true
-//   }
-// });
 
-// app.locals.io = io; // Make io available in app locals
 
 const socketIo = require('socket.io');
 const server = http.createServer(app);
@@ -243,7 +236,9 @@ app.use('/api/fforms', fformRouter);
 app.use('/api/appointments', appointmentRouter);
 app.use('/api/contacts', clientContactRouter);
 app.use('/api/zoom', zoomRoutes);
-
+app.use('/api/email-templates', emailTemplateRouter);
+app.use('/api/scheduled-emails', emailScheduleRouter);
+app.use('/api/user-settings', userSettingsRouter);
 
 // 6. Admin Routes - Serve Admin SPA
 const adminPaths = [

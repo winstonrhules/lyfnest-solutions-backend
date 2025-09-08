@@ -16,4 +16,5 @@ router.post('/contact-email', contactUserByEmail);
 router.get('/get-all-notifs', getAllNotifs,)
 router.delete('/delete-notifs',  deleteNotifs);
 router.delete('/:id', deleteANotifs)
+
 module.exports = router;
