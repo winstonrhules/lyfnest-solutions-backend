@@ -106,9 +106,15 @@ router.post('/', async (req, res) => {
 // PATCH update scheduled email status
 router.patch('/:id', async (req, res) => {
   try {
+    const updateData = {};
+    if (req.body.sent !== undefined) updateData.sent = req.body.sent;
+    if (req.body.sentAt !== undefined) updateData.sentAt = req.body.sentAt;
+    if (req.body.retryCount !== undefined) updateData.retryCount = req.body.retryCount;
+    if (req.body.error !== undefined) updateData.error = req.body.error;
+
     const scheduledEmail = await ScheduledEmail.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      updateData,
       { new: true }
     );
     
