@@ -93,11 +93,8 @@ router.get('/', async (req, res) => {
 // POST create scheduled email
 router.post('/', async (req, res) => {
   try {
-    const scheduledEmail = new ScheduledEmail({
-      ...req.body,
-      userId: req.user.id
-    });
-
+    const scheduledEmail = new ScheduledEmail(req.body);
+    
     await scheduledEmail.save();
     res.status(201).json(scheduledEmail);
   } catch (error) {
