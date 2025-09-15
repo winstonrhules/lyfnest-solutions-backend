@@ -94,7 +94,6 @@ router.get('/', async (req, res) => {
 router.post('/', async (req, res) => {
   try {
     const scheduledEmail = new ScheduledEmail(req.body);
-    
     await scheduledEmail.save();
     res.status(201).json(scheduledEmail);
   } catch (error) {
@@ -106,12 +105,13 @@ router.post('/', async (req, res) => {
 // PATCH update scheduled email status
 router.patch('/:id', async (req, res) => {
   try {
-    const updateData = {};
-    if (req.body.sent !== undefined) updateData.sent = req.body.sent;
-    if (req.body.sentAt !== undefined) updateData.sentAt = req.body.sentAt;
-    if (req.body.retryCount !== undefined) updateData.retryCount = req.body.retryCount;
-    if (req.body.error !== undefined) updateData.error = req.body.error;
-
+    // ISSUE 1 FIX: When marking as sent, also mark as processed
+    const updateData = { ...req.body };
+    if (updateData.sent === true) {
+      updateData.processed = true;
+      updateData.sentAt = updateData.sentAt || new Date().toISOString();
+    }
+    
     const scheduledEmail = await ScheduledEmail.findByIdAndUpdate(
       req.params.id,
       updateData,
@@ -141,6 +141,23 @@ router.delete('/:id', async (req, res) => {
     res.json({ message: 'Scheduled email deleted successfully' });
   } catch (error) {
     console.error('Error deleting scheduled email:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+
+// ISSUE 1 FIX: New route to get pending emails for processing
+router.get('/pending', async (req, res) => {
+  try {
+    const now = new Date();
+    const pendingEmails = await ScheduledEmail.find({
+      sent: false,
+      processed: false,
+      scheduleDateTime: { $lte: now }
+    }).sort({ scheduleDateTime: 1 });
+    
+    res.json(pendingEmails);
+  } catch (error) {
+    console.error('Error fetching pending emails:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });

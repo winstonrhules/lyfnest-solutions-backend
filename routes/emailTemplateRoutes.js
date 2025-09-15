@@ -151,10 +151,11 @@ const express = require('express');
 const router = express.Router();
 const EmailTemplate = require('../models/emailTemplateModel');
 
-// GET all templates
+// GET all templates with proper sorting
 router.get('/', async (req, res) => {
   try {
-    const templates = await EmailTemplate.find().sort({ updatedAt: -1 });
+    // ISSUE 2 FIX: Sort by createdAt to maintain chronological order
+    const templates = await EmailTemplate.find().sort({ createdAt: 1 });
     res.json(templates);
   } catch (error) {
     console.error('Error fetching templates:', error);
@@ -207,7 +208,7 @@ router.put('/:id', async (req, res) => {
   }
 });
 
-// DELETE template
+// ISSUE 3 FIX: Better delete response
 router.delete('/:id', async (req, res) => {
   try {
     const template = await EmailTemplate.findByIdAndDelete(req.params.id);
@@ -216,7 +217,11 @@ router.delete('/:id', async (req, res) => {
       return res.status(404).json({ message: 'Template not found' });
     }
     
-    res.json({ message: 'Template deleted successfully' });
+    // Return the deleted template for client-side confirmation
+    res.json({ 
+      message: 'Template deleted successfully',
+      deletedTemplate: template 
+    });
   } catch (error) {
     console.error('Error deleting template:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
@@ -224,4 +229,3 @@ router.delete('/:id', async (req, res) => {
 });
 
 module.exports = router;
-

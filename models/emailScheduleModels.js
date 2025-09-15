@@ -122,14 +122,11 @@
 const mongoose = require('mongoose');
 
 const scheduledEmailSchema = new mongoose.Schema({
-
   recipients: [{
     type: String,
     required: true
   }],
-  // ADD: Store contact data for personalization
   recipientContacts: [{
-    // Store basic contact info needed for personalization
     firstName: String,
     lastName: String,
     email: String,
@@ -142,7 +139,6 @@ const scheduledEmailSchema = new mongoose.Schema({
     appointmentDate: String,
     appointmentTime: String,
     reviewDueDate: String,
-    // Store any other fields you use in template variables
     customFields: mongoose.Schema.Types.Mixed
   }],
   subject: {
@@ -184,13 +180,23 @@ const scheduledEmailSchema = new mongoose.Schema({
   retryCount: {
     type: Number,
     default: 0
+  },
+  // ISSUE 1 FIX: Add processed flag to prevent duplicates
+  processed: {
+    type: Boolean,
+    default: false
+  },
+  isBulkMode: {
+    type: Boolean,
+    default: false
   }
 }, {
   timestamps: true
 });
 
-// Index for scheduled processing
-scheduledEmailSchema.index({ scheduleDateTime: 1, sent: 1 });
+// ISSUE 1 FIX: Better indexing for scheduled email processing
+scheduledEmailSchema.index({ scheduleDateTime: 1, sent: 1, processed: 1 });
 scheduledEmailSchema.index({ userId: 1, sent: 1 });
+scheduledEmailSchema.index({ _id: 1, scheduleDateTime: 1 }); // Compound index for uniqueness
 
 module.exports = mongoose.model('ScheduledEmail', scheduledEmailSchema);
