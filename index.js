@@ -4,7 +4,7 @@ const DBconnect = require('./config/DBconnect');
 const http = require('http');
 const {syncZoomMeetings} = require('./utils/zoomService');
 // Add this to your main server file
-const emailScheduler = require('./utils/emailSchedulerService');
+
 
 
 const app = express();
@@ -26,7 +26,7 @@ const zoomRoutes = require('./routes/zoomRoutes');
 const emailTemplateRouter = require('./routes/emailTemplateRoutes');
 const emailScheduleRouter = require('./routes/emailScheduleRoutes');
 const userSettingRouter = require('./routes/userSettingRoutes');
-const emailRouter = require('./routes/emailRoutes');
+// const emailRouter = require('./routes/emailRoutes');
 
 const Appointment = require('./models/appointmentModels'); // Import the Appointment model
 // Middleware
@@ -53,19 +53,6 @@ setInterval(() => {
 console.log("Zoom meetings synchronized");
 
 
-// Start the email scheduler when server starts
-emailScheduler.start(1); // Check every 1 minute
-
-// Gracefully stop scheduler on server shutdown
-process.on('SIGINT', () => {
-  emailScheduler.stop();
-  process.exit(0);
-});
-
-process.on('SIGTERM', () => {
-  emailScheduler.stop();
-  process.exit(0);
-});
 
 
 // Enhanced CORS configuration
@@ -260,7 +247,7 @@ app.use('/api/zoom', zoomRoutes);
 app.use('/api/email-templates', emailTemplateRouter);
 app.use('/api/scheduled-emails', emailScheduleRouter);
 app.use('/api/user-settings', userSettingRouter);
-app.use('/api/send-email', emailRouter);
+// app.use('/api/send-email', emailRouter);
 
 // 6. Admin Routes - Serve Admin SPA
 const adminPaths = [
