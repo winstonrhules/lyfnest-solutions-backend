@@ -209,7 +209,6 @@ router.put('/:id', async (req, res) => {
 });
 
 // ISSUE 3 FIX: Better delete response
-// In your emailRoutes2.txt - ensure the delete route looks like this:
 router.delete('/:id', async (req, res) => {
   try {
     const template = await EmailTemplate.findByIdAndDelete(req.params.id);
@@ -218,10 +217,13 @@ router.delete('/:id', async (req, res) => {
       return res.status(404).json({ message: 'Template not found' });
     }
     
-    // Return success message with the deleted template ID
+    // FIXED: Add a small delay to ensure database consistency
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
     res.json({ 
       message: 'Template deleted successfully',
-      deletedId: req.params.id
+      deletedTemplate: template,
+      success: true 
     });
   } catch (error) {
     console.error('Error deleting template:', error);
