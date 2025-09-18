@@ -90,6 +90,8 @@ router.get('/', async (req, res) => {
   }
 });
 
+
+
 // POST create scheduled email
 router.post('/', async (req, res) => {
   try {
@@ -129,6 +131,28 @@ router.patch('/:id', async (req, res) => {
   }
 });
 
+router.get('/:id/status', async (req, res) => {
+  try {
+    const email = await ScheduledEmail.findById(req.params.id);
+    
+    if (!email) {
+      return res.status(404).json({ message: 'Scheduled email not found' });
+    }
+    
+    res.json({
+      sent: email.sent,
+      sentAt: email.sentAt,
+      failed: email.failed,
+      lastError: email.lastError,
+      retryCount: email.retryCount,
+      nextRetry: email.nextRetry
+    });
+  } catch (error) {
+    console.error('Error fetching email status:', error);
+    res.status(500).json({ message: 'Server error', error: error.message });
+  }
+});
+  
 // DELETE scheduled email
 router.delete('/:id', async (req, res) => {
   try {
