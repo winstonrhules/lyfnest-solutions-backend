@@ -131,24 +131,36 @@ router.patch('/:id', async (req, res) => {
   }
 });
 
-router.get('/:id/status', async (req, res) => {
+// router.get('/:id/status', async (req, res) => {
+//   try {
+//     const email = await ScheduledEmail.findById(req.params.id);
+    
+//     if (!email) {
+//       return res.status(404).json({ message: 'Scheduled email not found' });
+//     }
+    
+//     res.json({
+//       sent: email.sent,
+//       sentAt: email.sentAt,
+//       failed: email.failed,
+//       lastError: email.lastError,
+//       retryCount: email.retryCount,
+//       nextRetry: email.nextRetry
+//     });
+//   } catch (error) {
+//     console.error('Error fetching email status:', error);
+//     res.status(500).json({ message: 'Server error', error: error.message });
+//   }
+// });
+
+// Add to your scheduledEmails.js routes
+router.get('/scheduler-status', async (req, res) => {
   try {
-    const email = await ScheduledEmail.findById(req.params.id);
-    
-    if (!email) {
-      return res.status(404).json({ message: 'Scheduled email not found' });
-    }
-    
-    res.json({
-      sent: email.sent,
-      sentAt: email.sentAt,
-      failed: email.failed,
-      lastError: email.lastError,
-      retryCount: email.retryCount,
-      nextRetry: email.nextRetry
-    });
+    const emailScheduler = require('../services/emailScheduler');
+    const status = await emailScheduler.getStatus();
+    res.json(status);
   } catch (error) {
-    console.error('Error fetching email status:', error);
+    console.error('Error getting scheduler status:', error);
     res.status(500).json({ message: 'Server error', error: error.message });
   }
 });
