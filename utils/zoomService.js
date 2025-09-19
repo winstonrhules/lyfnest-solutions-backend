@@ -539,13 +539,18 @@ const safeUniversalContactUserByEmail = async (req, res) => {
       const meeting = response.data;
 
       // Extract first and last name from userName
-      const firstName = userName.split(' ')[0] || '';
-      const lastName = userName.split(' ').slice(1).join(' ') || '';
+      const firstName = userName.split(' ')[0] || ''; 
+      const lastName = userName.split(' ').slice(1).join(' ') || '';     
       
       // Encode parameters for URL
       const encodedFirstName = encodeURIComponent(firstName);
       const encodedLastName = encodeURIComponent(lastName);
       const encodedEmail = encodeURIComponent(userEmail);
+
+      const schedulerUrl = `https://scheduler.zoom.us/nattye-a/discovery-and-guidance-call?first_name=${encodedFirstName}&last_name=${encodedLastName}&email=${encodedEmail}`;
+                            
+      // `https://scheduler.zoom.us/nattye-a/discovery-and-guidance-call?meeting_id=${meeting.id}&first_name=${encodedFirstName}&last_name=${encodedLastName}&email=${encodedEmail}`
+
 
       // Save meeting to ZoomMeeting model with pre-populated scheduler URL
       const zoomMeeting = new ZoomMeeting({
@@ -555,7 +560,7 @@ const safeUniversalContactUserByEmail = async (req, res) => {
         startUrl: meeting.start_url || '', 
         hostEmail: meeting.host_email,
         createdAt: new Date(meeting.created_at),
-        schedulerUrl: `https://scheduler.zoom.us/nattye-a/discovery-and-guidance-call?meeting_id=${meeting.id}&first_name=${encodedFirstName}&last_name=${encodedLastName}&email=${encodedEmail}`
+        schedulerUrl: schedulerUrl
       });
 
       await zoomMeeting.save();
