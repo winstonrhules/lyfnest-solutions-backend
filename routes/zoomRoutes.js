@@ -5,11 +5,14 @@ const {
   getAllZoomMeetings, 
   manualSync,
   syncZoomMeetings,
+  verifyAppointmentToken,
   deleteZoomMeeting 
 } = require('../controllers/zoomController');
 
 // Existing routes...
 router.post('/create-meeting', createZoomMeeting);
+router.get('/verify-token/:token', verifyAppointmentToken);
+
 router.get('/sync', syncZoomMeetings);
 router.get('/meetings', getAllZoomMeetings);
 router.post('/manual-sync', manualSync);
