@@ -1049,6 +1049,16 @@ const createZoomMeeting = async (req, res) => {
     );
 
     const meeting = response.data;
+    
+          // Extract first and last name from userName
+          const firstName = userName.split(' ')[0] || '';
+          const lastName = userName.split(' ').slice(1).join(' ') || '';
+          
+          // Encode parameters for URL
+          const encodedFirstName = encodeURIComponent(firstName);
+          const encodedLastName = encodeURIComponent(lastName);
+          const encodedEmail = encodeURIComponent(userEmail);
+          const encodedAppointmentId = encodeURIComponent(appointmentId);
 
     // Save meeting to database
     const zoomMeeting = new ZoomMeeting({
@@ -1058,7 +1068,8 @@ const createZoomMeeting = async (req, res) => {
       startUrl: meeting.start_url,
       hostEmail: meeting.host_email,
       createdAt: new Date(meeting.created_at),
-      schedulerUrl: `https://scheduler.zoom.us/nattye-a/discovery-and-guidance-call?meeting_id=${meeting.id}` // Your scheduler link
+      schedulerUrl: `https://scheduler.zoom.us/nattye-a/discovery-and-guidance-call?meeting_id=${meeting.id}&first_name=${encodedFirstName}&last_name=${encodedLastName}&email=${encodedEmail}&appointment_id=${encodedAppointmentId}`
+      // schedulerUrl: `https://scheduler.zoom.us/nattye-a/discovery-and-guidance-call?meeting_id=${meeting.id}` // Your scheduler link
     });
 
     await zoomMeeting.save();

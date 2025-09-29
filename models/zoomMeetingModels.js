@@ -16,16 +16,27 @@ const zoomMeetingSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-
   startUrl: {
     type: String,
     required: false
+  },
+  matchScore: {
+    type: Number,
+    default: 0
+  },
+  matchReason: {
+    type: String,
+    default: 'unknown'
+  },
+  needsReview: {
+    type: Boolean,
+    default: false
   },
   hostEmail: String,
   scheduleUrl:String,
   password:String,
   syncedAt:Date,
-  createdAt: {
+  createdAt: { 
     type: Date,
     default: Date.now
   }
