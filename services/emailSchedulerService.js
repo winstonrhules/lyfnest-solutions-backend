@@ -315,9 +315,9 @@ class EmailScheduler {
     // Clean up any stuck processing emails on startup
     await this.cleanupStuckEmails();
     
-    // Schedule job to run every 2 minutes
-    cron.schedule('*/2 * * * *', () => this.processScheduledEmails());
-    console.log('✅ Backend email scheduler initialized with 2-minute intervals');
+    // Schedule job to run every 5 minutes
+    cron.schedule('*/5 * * * *', () => this.processScheduledEmails());
+    console.log('✅ Backend email scheduler initialized with 5-minute intervals');
   }
 
   async cleanupStuckEmails() {
@@ -348,84 +348,178 @@ class EmailScheduler {
       console.error('❌ Error cleaning up stuck emails:', error);
     }
   }
-
   async processScheduledEmails() {
-    if (this.isProcessing) {
-      console.log('⏭️  Skipping: Already processing emails');
-      return;
-    }
-
-    this.isProcessing = true;
-    
-    try {
-      const now = new Date();
-      const ScheduledEmail = mongoose.model('ScheduledEmail');
-      
-      // Find emails that are due, not sent, and not currently being processed
-      const emailsToProcess = await ScheduledEmail.find({
-        scheduleDateTime: { $lte: now },
-        sent: false,
-        processing: { $ne: true }
-      })
-      .sort({ scheduleDateTime: 1 })
-      .limit(this.maxConcurrent);
-
-      if (emailsToProcess.length > 0) {
-        console.log(`📧 Found ${emailsToProcess.length} emails to process`);
-      }
-
-      // Process emails with proper error handling
-      for (const email of emailsToProcess) {
-        if (this.processingIds.has(email._id.toString())) {
-          console.log(`⏭️  Skipping email ${email._id}: Already in processing`);
-          continue;
-        }
-
-        this.processingIds.add(email._id.toString());
-        
-        try {
-          // Mark as processing immediately in database
-          await ScheduledEmail.findByIdAndUpdate(email._id, {
-            processing: true,
-            lastProcessingAttempt: new Date()
-          });
-
-          console.log(`🔄 Processing email: ${email._id}`);
-          await this.processSingleEmail(email);
-          
-          // Mark as sent successfully
-          await ScheduledEmail.findByIdAndUpdate(email._id, {
-            sent: true,
-            sentAt: new Date(),
-            processing: false,
-            $unset: { 
-              lastProcessingAttempt: 1, 
-              lastError: 1,
-              nextRetry: 1 
-            }
-          });
-          
-          console.log(`✅ Successfully sent scheduled email: ${email._id}`);
-        } catch (error) {
-          console.error(`❌ Failed to process email ${email._id}:`, error);
-          
-          // Mark as failed but allow retry
-          await ScheduledEmail.findByIdAndUpdate(email._id, {
-            processing: false,
-            lastError: error.message,
-            $inc: { retryCount: 1 }
-          });
-        } finally {
-          this.processingIds.delete(email._id.toString());
-        }
-      }
-    } catch (error) {
-      console.error('❌ Error in email scheduler main loop:', error);
-    } finally {
-      this.isProcessing = false;
-    }
+  if (this.isProcessing) {
+    console.log('⏭️  Skipping: Already processing emails');
+    return;
   }
 
+  this.isProcessing = true;
+  
+  try {
+    const now = new Date();
+    const ScheduledEmail = mongoose.model('ScheduledEmail');
+    
+    // CRITICAL FIX: Use atomic update to mark emails as processing
+    // This prevents multiple cron jobs from processing the same email
+    const markedEmails = await ScheduledEmail.updateMany(
+      {
+        scheduleDateTime: { $lte: now },
+        sent: false,
+        processing: false,
+        $or: [
+          { lastProcessingAttempt: { $exists: false } },
+          { lastProcessingAttempt: { $lt: new Date(Date.now() - 5 * 60 * 1000) } }
+        ]
+      },
+      {
+        $set: {
+          processing: true,
+          lastProcessingAttempt: new Date()
+        }
+      }
+    );
+
+    if (markedEmails.modifiedCount > 0) {
+      console.log(`📧 Marked ${markedEmails.modifiedCount} emails for processing`);
+    }
+
+    // Now find only the emails we just marked as processing
+    const emailsToProcess = await ScheduledEmail.find({
+      scheduleDateTime: { $lte: now },
+      sent: false,
+      processing: true,
+      lastProcessingAttempt: new Date() // Very recent
+    })
+    .sort({ scheduleDateTime: 1 })
+    .limit(this.maxConcurrent);
+
+    if (emailsToProcess.length > 0) {
+      console.log(`🔄 Processing ${emailsToProcess.length} emails`);
+    }
+
+    // Process emails with proper error handling
+    for (const email of emailsToProcess) {
+      if (this.processingIds.has(email._id.toString())) {
+        console.log(`⏭️  Skipping email ${email._id}: Already in processing`);
+        continue;
+      }
+
+      this.processingIds.add(email._id.toString());
+      
+      try {
+        console.log(`🔄 Processing email: ${email._id}`);
+        await this.processSingleEmail(email);
+        
+        // Mark as sent successfully
+        await ScheduledEmail.findByIdAndUpdate(email._id, {
+          sent: true,
+          sentAt: new Date(),
+          processing: false,
+          processed: true, // ADD THIS
+          $unset: { 
+            lastProcessingAttempt: 1, 
+            lastError: 1
+          }
+        });
+        
+        console.log(`✅ Successfully sent scheduled email: ${email._id}`);
+      } catch (error) {
+        console.error(`❌ Failed to process email ${email._id}:`, error);
+        
+        // Mark as failed but allow retry
+        await ScheduledEmail.findByIdAndUpdate(email._id, {
+          processing: false,
+          lastError: error.message,
+          $inc: { retryCount: 1 }
+        });
+      } finally {
+        this.processingIds.delete(email._id.toString());
+      }
+    }
+  } catch (error) {
+    console.error('❌ Error in email scheduler main loop:', error);
+  } finally {
+    this.isProcessing = false;
+  }
+} 
+
+  // async processScheduledEmails() {
+  //   if (this.isProcessing) {
+  //     console.log('⏭️  Skipping: Already processing emails');
+  //     return;
+  //   }
+
+  //   this.isProcessing = true;
+    
+  //   try {
+  //     const now = new Date();
+  //     const ScheduledEmail = mongoose.model('ScheduledEmail');
+      
+  //     // Find emails that are due, not sent, and not currently being processed
+  //     const emailsToProcess = await ScheduledEmail.find({
+  //       scheduleDateTime: { $lte: now },
+  //       sent: false,
+  //       processing: { $ne: true }
+  //     })
+  //     .sort({ scheduleDateTime: 1 })
+  //     .limit(this.maxConcurrent);
+
+  //     if (emailsToProcess.length > 0) {
+  //       console.log(`📧 Found ${emailsToProcess.length} emails to process`);
+  //     }
+
+  //     // Process emails with proper error handling
+  //     for (const email of emailsToProcess) {
+  //       if (this.processingIds.has(email._id.toString())) {
+  //         console.log(`⏭️  Skipping email ${email._id}: Already in processing`);
+  //         continue;
+  //       }
+
+  //       this.processingIds.add(email._id.toString());
+        
+  //       try {
+  //         // Mark as processing immediately in database
+  //         await ScheduledEmail.findByIdAndUpdate(email._id, {
+  //           processing: true,
+  //           lastProcessingAttempt: new Date()
+  //         });
+
+  //         console.log(`🔄 Processing email: ${email._id}`);
+  //         await this.processSingleEmail(email);
+          
+  //         // Mark as sent successfully
+  //         await ScheduledEmail.findByIdAndUpdate(email._id, {
+  //           sent: true,
+  //           sentAt: new Date(),
+  //           processing: false,
+  //           $unset: { 
+  //             lastProcessingAttempt: 1, 
+  //             lastError: 1,
+  //             nextRetry: 1 
+  //           }
+  //         });
+          
+  //         console.log(`✅ Successfully sent scheduled email: ${email._id}`);
+  //       } catch (error) {
+  //         console.error(`❌ Failed to process email ${email._id}:`, error);
+          
+  //         // Mark as failed but allow retry
+  //         await ScheduledEmail.findByIdAndUpdate(email._id, {
+  //           processing: false,
+  //           lastError: error.message,
+  //           $inc: { retryCount: 1 }
+  //         });
+  //       } finally {
+  //         this.processingIds.delete(email._id.toString());
+  //       }
+  //     }
+  //   } catch (error) {
+  //     console.error('❌ Error in email scheduler main loop:', error);
+  //   } finally {
+  //     this.isProcessing = false;
+  //   }
+  // }756
   async processSingleEmail(email) {
     const { sendEmailViaSES } = require('./sesService');
     const { replaceTemplateVariables } = require('./templateService');
