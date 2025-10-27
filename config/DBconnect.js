@@ -1,7 +1,7 @@
 const mongoose = require("mongoose")
-const EmailScheduler = require('../services/emailSchedulerService');
+const RobustEmailScheduler = require('../services/emailSchedulerService');
 
-const emailScheduler = new EmailScheduler();
+const emailScheduler = new RobustEmailScheduler();
 
 const DBconnect = ()=>{
     try{
