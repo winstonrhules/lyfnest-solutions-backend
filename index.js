@@ -5,7 +5,7 @@ const http = require('http');
 const {syncZoomMeetings} = require('./utils/zoomService');
 // Add this to your main server file
 
-
+const emailScheduler = require('./services/emailSchedulerService');
 
 const app = express();
 
@@ -34,8 +34,38 @@ const corsConfig = require('./middlewares/corsConfig');
 const robotsBlock = require('./middlewares/robotsHeader');
 const { notFound, errorHandler } = require('./middlewares/errorHandler');
 
-// Connect to database
-DBconnect();
+
+async function startServer() {
+  try{
+       // Connect to database
+       await DBconnect()
+       console.log("database connected, starting email scheduler...");
+       
+       // Start email scheduler
+       emailScheduler.start();
+       console.log("email scheduler started.");
+  }catch(error){
+       console.error("Error starting server:", error);
+  }
+}
+
+startServer(); 
+
+
+
+process.on('SIGTERM', async () => {
+  console.log('SIGTERM signal received: closing HTTP server');
+  emailScheduler.stop();
+  await mongoose.connection.close();
+  process.exit(0);
+});
+
+process.on('SIGINT', async () => {
+  console.log('SIGINT signal received: closing HTTP server');
+  emailScheduler.stop();
+  await mongoose.connection.close();
+  process.exit(0);
+});
 
 
 
@@ -315,6 +345,7 @@ app.use((req, res, next) => {
 // 8. Error Handling
 app.use(notFound);
 app.use(errorHandler);
+
 
 
 // Start Server
