@@ -977,7 +977,7 @@ class EmailSchedulerService {
     const results = [];
     
     // Get company settings for variable replacement
-    const UserSettings = require('../models/UserSettings');
+    const UserSettings = require('../models/userSettingModels');
     const settings = await UserSettings.findOne();
     const companySettings = settings?.companySettings || {};
 
