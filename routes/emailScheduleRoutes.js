@@ -389,7 +389,7 @@ router.get('/scheduled/:jobId', async (req, res) => {
 router.post('/scheduled/:jobId/send-now', async (req, res) => {
   try {
     const { jobId } = req.params;
-    const EmailSchedule = require('../models/EmailSchedule');
+    const EmailSchedule = require('../models/emailScheduleModels');
     
     // Update schedule time to now
     const schedule = await EmailSchedule.findOneAndUpdate(

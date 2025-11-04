@@ -4,7 +4,7 @@ const DBconnect = require('./config/DBconnect');
 const http = require('http');
 const {syncZoomMeetings} = require('./utils/zoomService');
 // Add this to your main server file
-
+const mongoose = require('mongoose'); 
 const emailScheduler = require('./services/emailSchedulerService');
 
 const app = express();
