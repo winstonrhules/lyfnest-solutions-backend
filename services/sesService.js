@@ -1144,7 +1144,7 @@ const sendEmailViaSES = async (emailData) => {
 
     // Send email
     const command = new SendEmailCommand(params);
-    const result = await sesClient.send(command)
+    const result = await sesClient.send(command).promise()
     console.log('Email sent successfully:', result.MessageId);
     return result;
   } catch (error) {
