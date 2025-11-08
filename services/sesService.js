@@ -806,6 +806,303 @@ const templateDesigns = {
   },
 }
 
+// Pre-built email templates with unique designs - UPDATED WITH ALL TEMPLATES
+const templateLibrary = {
+  birthday: {
+    name: 'Birthday Greeting',
+    subject: 'Happy Birthday {{firstName}}! 🎉',
+    body: `
+      <div style="text-align: center; margin: 20px 0;">
+        <div style="font-size: 48px; margin-bottom: 10px;">🎂🎉🎈</div>
+        <h2 style="color: #ff6b6b; font-family: 'Comic Sans MS', cursive;">Happy Birthday, {{firstName}}!</h2>
+      </div>
+      
+      <p>Dear {{firstName}},</p>
+      
+      <div style="background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%); padding: 20px; border-radius: 15px; margin: 20px 0; text-align: center;">
+        <p style="font-size: 18px; color: #333; margin: 0;"><strong>Wishing you a day filled with happiness and a year filled with joy! 🌟</strong></p>
+      </div>
+      
+      <p>As your insurance advisor, we want to remind you that birthdays are perfect milestones to review your coverage needs. Life changes, and so do your insurance requirements!</p>
+      
+      <div style="background: #f8f9fa; border-left: 4px solid #28a745; padding: 15px; margin: 20px 0;">
+        <p style="margin: 0;"><strong>Birthday Special:</strong> Schedule a complimentary policy review and receive personalized recommendations for your evolving needs.</p>
+      </div>
+      
+      <p>If you'd like to schedule a quick policy review, please feel free to reach out to us.</p>
+      
+      <div style="text-align: center; margin: 30px 0;">
+        <div style="font-size: 32px;">🎁✨🎊</div>
+        <p style="font-style: italic; color: #666;">May this new year of life bring you endless opportunities and cherished moments!</p>
+      </div>
+      
+      <p>Best regards,<br>{{agentName}}<br>{{companyName}}</p>
+    `,
+    design: 'vibrant'
+  },
+  policyReview: {
+    name: 'Policy Review Reminder',
+    subject: '{{firstName}}, Time for Your {{policyType}} Review',
+    body: `
+      <div style="background: #e3f2fd; border-left: 5px solid #2196f3; padding: 20px; margin: 20px 0; border-radius: 5px;">
+        <h3 style="color: #1976d2; margin-top: 0;"><i style="margin-right: 10px;">📋</i>Annual Policy Review Notice</h3>
+      </div>
+      
+      <p>Dear {{firstName}},</p>
+      
+      <p>I hope this email finds you well. It's time for your annual {{policyType}} policy review!</p>
+      
+      <div style="background: #fff3e0; border: 1px solid #ff9800; border-radius: 8px; padding: 20px; margin: 20px 0;">
+        <p style="margin: 0 0 10px 0;"><strong>📅 Review Due Date:</strong> {{reviewDueDate}}</p>
+        <p style="margin: 0;"><strong>📝 Policy Type:</strong> {{policyType}}</p>
+      </div>
+      
+      <p>This comprehensive review is a great opportunity to:</p>
+      <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; margin: 15px 0;">
+        <ul style="margin: 0; padding-left: 20px;">
+          <li style="margin-bottom: 8px;"><strong>🔍 Review your current coverage</strong> - Ensure adequate protection</li>
+          <li style="margin-bottom: 8px;"><strong>💬 Discuss any life changes</strong> - Marriage, children, home purchase, etc.</li>
+          <li style="margin-bottom: 8px;"><strong>💰 Explore potential savings</strong> - New discounts and better rates</li>
+          <li style="margin-bottom: 8px;"><strong>🛡️ Optimize your protection</strong> - Match coverage to current needs</li>
+        </ul>
+      </div>
+      
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="{{schedulingLink}}" style="background: linear-gradient(135deg, #2196f3 0%, #21cbf3 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 25px; font-weight: bold; display: inline-block; box-shadow: 0 4px 15px rgba(33, 150, 243, 0.3);">
+          📅 Schedule Your Review Meeting
+        </a>
+      </div>
+      
+      <p>If you have any questions, please don't hesitate to contact me at {{agentEmail}} or {{agentPhone}}.</p>
+      
+      <p>Best regards,<br>{{agentName}}<br>{{companyName}}</p>
+    `,
+    design: 'modern'
+  },
+  followUp: {
+    name: 'Follow-up Appointment',
+    subject: '{{firstName}}, Let\'s Schedule Your Next Appointment',
+    body: `
+      <div style="background: #e8f5e8; border-left: 5px solid #4caf50; padding: 20px; margin: 20px 0; border-radius: 5px;">
+        <h3 style="color: #2e7d32; margin-top: 0;"><i style="margin-right: 10px;">🤝</i>Follow-Up Meeting Request</h3>
+      </div>
+      
+      <p>Hello {{firstName}},</p>
+      
+      <p>Thank you for taking the time to discuss your insurance needs with us recently. Your engagement in securing proper coverage shows great foresight!</p>
+      
+      <div style="background: #fff8e1; border: 1px solid #ffc107; border-radius: 8px; padding: 20px; margin: 20px 0;">
+        <p style="margin: 0 0 15px 0;"><strong>📊 Current Status:</strong> {{policyType}} Coverage Discussion</p>
+        <p style="margin: 0;"><strong>⏭️ Next Steps:</strong> Finalize Your Protection Plan</p>
+      </div>
+      
+      <p>As we discussed, it's important to follow up on the next steps for your {{policyType}} coverage. I'd like to schedule a follow-up appointment to:</p>
+      
+      <div style="background: #f3e5f5; padding: 20px; border-radius: 8px; margin: 15px 0;">
+        <ul style="margin: 0; padding-left: 20px;">
+          <li style="margin-bottom: 10px;"><strong>📄 Review the proposals</strong> we discussed in detail</li>
+          <li style="margin-bottom: 10px;"><strong>❓ Answer any additional questions</strong> that may have come up</li>
+          <li style="margin-bottom: 10px;"><strong>✅ Complete your application</strong> if you're ready to proceed</li>
+        </ul>
+      </div>
+      
+      <div style="background: linear-gradient(135deg, #e1f5fe 0%, #f3e5f5 100%); padding: 25px; border-radius: 12px; text-align: center; margin: 25px 0;">
+        <p style="margin: 0 0 15px 0; font-size: 18px; color: #333;"><strong>Ready to take the next step?</strong></p>
+        <a href="{{schedulingLink}}" style="background: linear-gradient(135deg, #4caf50 0%, #8bc34a 100%); color: white; padding: 12px 25px; text-decoration: none; border-radius: 20px; font-weight: bold; display: inline-block;">
+          🗓️ Schedule Follow-Up Meeting
+        </a>
+      </div>
+      
+      <p>I'm here to help ensure you get the right coverage for your needs and answer any questions you may have.</p>
+      
+      <p>Looking forward to speaking with you soon!</p>
+      
+      <p>Best regards,<br>{{agentName}}<br>{{companyName}}<br>{{agentEmail}} | {{agentPhone}}</p>
+    `,
+    design: 'elegant'
+  },
+  welcome: {
+    name: 'Welcome New Client',
+    subject: 'Welcome to {{companyName}}, {{firstName}}!',
+    body: `
+      <div style="text-align: center; margin: 20px 0;">
+        <div style="font-size: 48px; margin-bottom: 15px;">🎉✨🏆</div>
+        <h1 style="color: #d4af37; font-family: Georgia, serif; margin: 0;">Welcome to the Family!</h1>
+      </div>
+      
+      <p>Dear {{firstName}},</p>
+      
+      <div style="background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%); color: #d4af37; padding: 25px; border-radius: 10px; text-align: center; margin: 25px 0; border: 2px solid #d4af37;">
+        <p style="margin: 0; font-size: 20px; font-weight: bold;">Welcome to the {{companyName}} family!</p>
+        <p style="margin: 10px 0 0 0; color: #e8e8e8;">We're thrilled to have you as our newest valued client.</p>
+      </div>
+      
+      <p>Your {{policyType}} policy is now in effect and active. Here are your important policy details:</p>
+      
+      <div style="background: #f8f9fa; border: 2px solid #28a745; border-radius: 10px; padding: 25px; margin: 25px 0;">
+        <h3 style="color: #155724; margin-top: 0; border-bottom: 2px solid #28a745; padding-bottom: 10px;"><i style="margin-right: 10px;">📋</i>Your Policy Information</h3>
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 8px 0; font-weight: bold; color: '155724'; width: 40%;">Policy Number:</td>
+            <td style="padding: 8px 0;">{{policyNumber}}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; font-weight: bold; color: '155724';">Coverage Type:</td>
+            <td style="padding: 8px 0;">{{policyType}}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; font-weight: bold; color: '155724';">Premium Amount:</td>
+            <td style="padding: 8px 0;">{{premiumAmount}}</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; font-weight: bold; color: '155724';">Next Review Date:</td>
+            <td style="padding: 8px 0;">{{renewalDate}}</td>
+          </tr>
+        </table>
+      </div>
+      
+      <div style="background: #e3f2fd; border-left: 5px solid #2196f3; padding: 20px; margin: 20px 0; border-radius: 5px;">
+        <h4 style="color: #1976d2; margin-top: 0;"><i style="margin-right: 10px;">🌟</i>Our Commitment to You</h4>
+        <p style="margin-bottom: 0;">As your dedicated insurance advisor, I'm committed to providing you with exceptional service, ongoing support, and expertise whenever you need it. Your protection and peace of mind are our top priorities.</p>
+      </div>
+      
+      <p>Please don't hesitate to reach out if you have any questions, concerns, or need assistance with your policy.</p>
+      
+      <div style="text-align: center; margin: 30px 0;">
+        <div style="font-size: 32px; margin-bottom: 10px;">🤝💙🛡️</div>
+        <p style="font-style: italic; color: #666; font-size: 18px;">Thank you for choosing {{companyName}} for your insurance needs!</p>
+      </div>
+      
+      <p>Warm regards,<br>{{agentName}}<br>{{companyName}}<br>{{agentEmail}} | {{agentPhone}}</p>
+    `,
+    design: 'luxury'
+  },
+  highPriority: {
+    name: 'High Priority Update',
+    subject: 'URGENT: Important Update Regarding Your {{policyType}} Policy',
+    body: `
+      <div style="background: #ffebee; border-left: 5px solid #f44336; padding: 20px; margin: 20px 0; border-radius: 5px;">
+        <h3 style="color: #c62828; margin-top: 0;"><i style="margin-right: 10px;">⚠️</i>High Priority Update Required</h3>
+      </div>
+      
+      <p>Dear {{firstName}},</p>
+      
+      <p>We have an important update regarding your {{policyType}} policy that requires your immediate attention.</p>
+      
+      <div style="background: #fff3e0; border: 1px solid #ff9800; border-radius: 8px; padding: 20px; margin: 20px 0;">
+        <p style="margin: 0 0 10px 0;"><strong>🔒 Action Required:</strong> Please review the following information and take the necessary steps to ensure your coverage remains uninterrupted.</p>
+        <p style="margin: 0;"><strong>📝 Policy Type:</strong> {{policyType}}</p>
+      </div>
+      
+      <p>This matter is time-sensitive and we strongly recommend addressing it as soon as possible to avoid any potential issues with your coverage.</p>
+      
+      <div style="background: #e3f2fd; padding: 20px; border-radius: 8px; margin: 15px 0;">
+        <ul style="margin: 0; padding-left: 20px;">
+          <li style="margin-bottom: 8px;"><strong>📞 Contact us immediately</strong> to discuss the necessary steps</li>
+          <li style="margin-bottom: 8px;"><strong>📄 Review your policy documents</strong> for any recent changes</li>
+          <li style="margin-bottom: 8px;"><strong>🛡️ Ensure your coverage</strong> meets your current needs</li>
+        </ul>
+      </div>
+      
+      <div style="text-align: center; margin: 30px 0;">
+        <a href="{{schedulingLink}}" style="background: linear-gradient(135deg, #f44336 0%, #e57373 100%); color: white; padding: 15px 30px; text-decoration: none; border-radius: 25px; font-weight: bold; display: inline-block; box-shadow: 0 4px 15px rgba(244, 67, 54, 0.3);">
+          🗓️ Schedule Immediate Review
+        </a>
+      </div>
+      
+      <p>If you have any questions, please don't hesitate to contact me at {{agentEmail}} or {{agentPhone}}.</p>
+      
+      <p>Best regards,<br>{{agentName}}<br>{{companyName}}</p>
+    `,
+    design: 'modern'
+  },
+  vip: {
+    name: 'VIP Client Update',
+    subject: 'Exclusive Update for Our Valued VIP Client, {{firstName}}!',
+    body: `
+      <div style="text-align: center; margin: 20px 0;">
+        <div style="font-size: 48px; margin-bottom: 15px;">🌟✨🏆</div>
+        <h1 style="color: #d4af37; font-family: Georgia, serif; margin: 0;">VIP Client Update</h1>
+      </div>
+      
+      <p>Dear {{firstName}},</p>
+      
+      <div style="background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%); color: #d4af37; padding: 25px; border-radius: 10px; text-align: center; margin: 25px 0; border: 2px solid #d4af37;">
+        <p style="margin: 0; font-size: 20px; font-weight: bold;">Thank You for Being a Valued VIP Client!</p>
+        <p style="margin: 10px 0 0 0; color: #e8e8e8;">We appreciate your trust in us and are committed to providing you with exceptional service.</p>
+      </div>
+      
+      <p>As part of our VIP client community, we want to ensure you are always up-to-date with the best opportunities and service enhancements available to you.</p>
+      
+      <div style="background: #f8f9fa; border: 2px solid #d4af37; border-radius: 10px; padding: 25px; margin: 25px 0;">
+        <h3 style="color: #d4af37; margin-top: 0; border-bottom: 2px solid #d4af37; padding-bottom: 10px;"><i style="margin-right: 10px;">🎁</i>Exclusive VIP Benefits</h3>
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 8px 0; font-weight: bold; color: #d4af37; width: 40%;">Priority Support:</td>
+            <td style="padding: 8px 0;">Dedicated line for VIP clients</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; font-weight: bold; color: #d4af37;">Exclusive Offers:</td>
+            <td style="padding: 8px 0;">Special rates and products</td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 0; font-weight: bold; color: #d4af37;">Personalized Service:</td>
+            <td style="padding: 8px 0;">Tailored to your unique needs</td>
+          </tr>
+        </table>
+      </div>
+      
+      <div style="background: #e3f2fd; border-left: 5px solid #2196f3; padding: 20px; margin: 20px 0; border-radius: 5px;">
+        <h4 style="color: #1976d2; margin-top: 0;"><i style="margin-right: 10px;">🌟</i>Our Commitment to You</h4>
+        <p style="margin-bottom: 0;">We are dedicated to ensuring your financial security and satisfaction. Please don't hesitate to reach out if there's anything we can do to improve your experience.</p>
+      </div>
+      
+      <p>We look forward to continuing to serve you at the highest level.</p>
+      
+      <div style="text-align: center; margin: 30px 0;">
+        <div style="font-size: 32px; margin-bottom: 10px;">🤝💙🛡️</div>
+        <p style="font-style: italic; color: #666; font-size: 18px;">Thank you for being a part of the {{companyName}} family!</p>
+      </div>
+      
+      <p>Warm regards,<br>{{agentName}}<br>{{companyName}}<br>{{agentEmail}} | {{agentPhone}}</p>
+    `,
+    design: 'luxury'
+  },
+  holidays: {
+    name: 'Holiday Greeting',
+    subject: 'Season\'s Greetings from {{companyName}}, {{firstName}}!',
+    body: `
+      <div style="text-align: center; margin: 20px 0;">
+        <div style="font-size: 48px; margin-bottom: 10px;">🎄🎁✨</div>
+        <h2 style="color: #ff6b6b; font-family: 'Comic Sans MS', cursive;">Season's Greetings, {{firstName}}!</h2>
+      </div>
+      
+      <p>Dear {{firstName}},</p>
+      
+      <div style="background: linear-gradient(135deg, #ff9a9e 0%, #fecfef 100%); padding: 20px; border-radius: 15px; margin: 20px 0; text-align: center;">
+        <p style="font-size: 18px; color: #333; margin: 0;"><strong>Wishing you and your family a joyful holiday season and a prosperous new year! 🌟</strong></p>
+      </div>
+      
+      <p>As the year comes to a close, we want to express our gratitude for your trust and partnership. It's been our pleasure to serve you and help protect what matters most to you.</p>
+      
+      <div style="background: #f8f9fa; border-left: 4px solid #28a745; padding: 15px; margin: 20px 0;">
+        <p style="margin: 0;"><strong>Holiday Reminder:</strong> The end of the year is a great time to review your coverage and ensure you're ready for the year ahead.</p>
+      </div>
+      
+      <p>If you'd like to schedule a complimentary policy review, please feel free to reach out to us.</p>
+      
+      <div style="text-align: center; margin: 30px 0;">
+        <div style="font-size: 32px;">🎉✨🎊</div>
+        <p style="font-style: italic; color: #666;">May this holiday season bring you happiness, peace, and cherished moments with loved ones!</p>
+      </div>
+      
+      <p>Best regards,<br>{{agentName}}<br>{{companyName}}</p>
+    `,
+    design: 'vibrant'
+  }
+};
+
+
 
 const sendEmailViaSES = async (emailData) => {
   const {
@@ -847,7 +1144,7 @@ const sendEmailViaSES = async (emailData) => {
 
     // Send email
     const command = new SendEmailCommand(params);
-    const result = await sesClient.send(command).promise();
+    const result = await sesClient.send(command)
     console.log('Email sent successfully:', result.MessageId);
     return result;
   } catch (error) {
