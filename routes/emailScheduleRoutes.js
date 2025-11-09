@@ -478,6 +478,41 @@ router.get('/status', async (req, res) => {
 });
 
 /**
+ * GET - Get scheduled emails with status filter
+ */
+router.get('/scheduled/status/:status', async (req, res) => {
+  try {
+    const { status } = req.params;
+    const validStatuses = ['pending', 'processing', 'completed', 'failed', 'cancelled'];
+    
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ 
+        success: false,
+        error: 'Invalid status filter' 
+      });
+    }
+
+    const EmailSchedule = require('../models/EmailSchedule');
+    const scheduledEmails = await EmailSchedule.find({ status })
+      .sort({ scheduledFor: 1 })
+      .limit(100);
+
+    res.json({
+      success: true,
+      count: scheduledEmails.length,
+      data: scheduledEmails
+    });
+
+  } catch (error) {
+    console.error('Error fetching scheduled emails by status:', error);
+    res.status(500).json({ 
+      error: 'Failed to fetch scheduled emails',
+      details: error.message 
+    });
+  }
+});
+
+/**
  * POST - Manually trigger scheduler (for testing/admin)
  */
 router.post('/trigger', async (req, res) => {
