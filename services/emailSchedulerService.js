@@ -434,7 +434,7 @@
 
 // module.exports = schedulerInstance;
 
-// services/emailSchedulerService.js
+/// services/emailSchedulerService.js
 const cron = require('node-cron');
 const { v4: uuidv4 } = require('uuid');
 const EmailSchedule = require('../models/emailScheduleModels');
@@ -450,7 +450,7 @@ class EmailSchedulerService {
     this.processingJobs = new Map();
     this.dbConnected = false;
 
-    // Database connection listeners
+    // Track DB connection
     mongoose.connection.on('connected', () => {
       this.dbConnected = true;
       console.log('✅ Database connected - scheduler ready');
@@ -463,7 +463,43 @@ class EmailSchedulerService {
   }
 
   /**
-   * ✅ Start the email scheduler
+   * ✅ Schedule a new email
+   */
+  async scheduleEmail({ recipients, recipientContacts, subject, body, design, sender, attachments, scheduleDateTime }) {
+    try {
+      if (!recipients || recipients.length === 0) {
+        throw new Error('At least one recipient is required');
+      }
+
+      const jobId = `job-${uuidv4()}`;
+
+      const newSchedule = new EmailSchedule({
+        jobId,
+        recipients: recipients.map((email, index) => ({
+          email,
+          contactData: recipientContacts?.[index] || {}
+        })),
+        subject,
+        bodyTemplate: body,
+        design: design || 'default',
+        sender,
+        attachments: attachments || [],
+        scheduledFor: new Date(scheduleDateTime),
+        status: 'pending'
+      });
+
+      await newSchedule.save();
+
+      console.log(`📅 Scheduled new email job: ${jobId} for ${recipients.length} recipient(s)`);
+      return newSchedule;
+    } catch (error) {
+      console.error('❌ Error scheduling email:', error);
+      throw new Error('Failed to schedule email: ' + error.message);
+    }
+  }
+
+  /**
+   * ✅ Start the scheduler (runs every minute)
    */
   async start() {
     if (this.isRunning) {
@@ -474,7 +510,7 @@ class EmailSchedulerService {
     console.log(`🚀 Starting Email Scheduler [${this.processId}]`);
 
     if (!this.dbConnected) {
-      console.log('⏳ Waiting for database connection before starting scheduler...');
+      console.log('⏳ Waiting for DB connection...');
       await this.waitForConnection();
     }
 
@@ -486,7 +522,7 @@ class EmailSchedulerService {
       await this.processScheduledEmails();
     });
 
-    // Cleanup completed jobs daily at midnight
+    // Clean up completed jobs daily at midnight
     cron.schedule('0 0 * * *', async () => {
       await this.cleanupOldJobs();
     });
@@ -522,7 +558,7 @@ class EmailSchedulerService {
   async processScheduledEmails() {
     try {
       if (!this.dbConnected || mongoose.connection.readyState !== 1) {
-        console.log('⏳ Skipping processing - database not connected');
+        console.log('⏳ Skipping processing - DB not connected');
         return;
       }
 
@@ -530,17 +566,15 @@ class EmailSchedulerService {
       if (jobs.length === 0) return;
 
       console.log(`📬 Found ${jobs.length} jobs to process`);
-
       const processPromises = jobs.map(job => this.processJob(job));
       await Promise.allSettled(processPromises);
-
     } catch (error) {
       console.error('❌ Error in scheduler loop:', error);
     }
   }
 
   /**
-   * Process individual job
+   * Process one job
    */
   async processJob(job) {
     const jobId = job.jobId;
@@ -565,7 +599,6 @@ class EmailSchedulerService {
 
       await job.markCompleted(results);
       console.log(`✅ Job ${jobId} completed successfully`);
-
     } catch (error) {
       console.error(`❌ Error processing job ${jobId}:`, error);
       await job.markFailed(error.message);
@@ -590,7 +623,6 @@ class EmailSchedulerService {
           recipient.contactData || {},
           companySettings
         );
-
         const personalizedBody = replaceTemplateVariables(
           job.bodyTemplate,
           recipient.contactData || {},
@@ -629,7 +661,7 @@ class EmailSchedulerService {
   }
 
   /**
-   * ✅ Get all scheduled emails (for UI display)
+   * ✅ Get all scheduled emails
    */
   async getAllScheduledEmails() {
     try {
@@ -654,7 +686,7 @@ class EmailSchedulerService {
   }
 
   /**
-   * ✅ Cancel a scheduled email
+   * ✅ Cancel scheduled email
    */
   async cancelEmail(jobId) {
     const schedule = await EmailSchedule.findOne({ jobId });
@@ -672,26 +704,20 @@ class EmailSchedulerService {
   }
 
   /**
-   * Cleanup stale locks
+   * Clean up stale locks
    */
   async cleanupStaleLocks() {
     if (!this.dbConnected || mongoose.connection.readyState !== 1) {
-      console.log('⏳ Database not connected, skipping stale lock cleanup');
+      console.log('⏳ Skipping stale lock cleanup - DB disconnected');
       return;
     }
 
     try {
       const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-
       const result = await EmailSchedule.updateMany(
-        {
-          status: 'processing',
-          lockedAt: { $lt: fiveMinutesAgo }
-        },
-        {
-          $set: { status: 'pending', lockedAt: null, lockedBy: null }
-        }
-      ).maxTimeMS(30000);
+        { status: 'processing', lockedAt: { $lt: fiveMinutesAgo } },
+        { $set: { status: 'pending', lockedAt: null, lockedBy: null } }
+      );
 
       if (result.modifiedCount > 0) {
         console.log(`🔓 Cleaned up ${result.modifiedCount} stale locks`);
@@ -702,11 +728,11 @@ class EmailSchedulerService {
   }
 
   /**
-   * Cleanup old completed jobs
+   * Clean up old completed jobs
    */
   async cleanupOldJobs() {
     if (!this.dbConnected || mongoose.connection.readyState !== 1) {
-      console.log('⏳ Database not connected, skipping old job cleanup');
+      console.log('⏳ DB not connected, skipping cleanup');
       return;
     }
 
@@ -719,7 +745,7 @@ class EmailSchedulerService {
   }
 
   /**
-   * ✅ Get scheduler status (for dashboard)
+   * ✅ Scheduler status (for dashboard)
    */
   async getStatus() {
     const total = await EmailSchedule.countDocuments();
