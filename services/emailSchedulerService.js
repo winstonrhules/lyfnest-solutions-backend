@@ -1082,18 +1082,41 @@ class EmailSchedulerService {
   /**
    * ✅ Get all scheduled emails
    */
-  async getAllScheduledEmails() {
-    try {
-      const emails = await EmailSchedule.find({
-        status: { $in: ['pending', 'processing', 'cancelled', 'failed', 'completed'] }
-      }).sort({ scheduledFor: 1 });
+  // async getAllScheduledEmails() {
+  //   try {
+  //     const emails = await EmailSchedule.find({
+  //       status: { $in: ['pending', 'processing', 'cancelled', 'failed', 'completed'] }
+  //     }).sort({ scheduledFor: 1 });
 
-      return emails;
-    } catch (error) {
-      console.error('❌ Error fetching scheduled emails:', error);
-      throw new Error('Failed to fetch scheduled emails');
-    }
+  //     return emails;
+  //   } catch (error) {
+  //     console.error('❌ Error fetching scheduled emails:', error);
+  //     throw new Error('Failed to fetch scheduled emails');
+  //   }
+  // }
+
+async getAllScheduledEmails() {
+  try {
+    // Fetch ALL emails regardless of status
+    const emails = await EmailSchedule.find({})
+      .sort({ createdAt: -1 }); // Sort by creation date, newest first
+    
+    console.log(`[Service] Found ${emails.length} total scheduled emails`);
+    
+    // Log status breakdown for debugging
+    const statusCounts = emails.reduce((acc, e) => {
+      acc[e.status] = (acc[e.status] || 0) + 1;
+      return acc;
+    }, {});
+    console.log('[Service] Status breakdown:', statusCounts);
+    
+    return emails;
+  } catch (error) {
+    console.error('❌ Error fetching scheduled emails:', error);
+    throw new Error('Failed to fetch scheduled emails');
   }
+}
+
 
   /**
    * ✅ Get one scheduled email by jobId

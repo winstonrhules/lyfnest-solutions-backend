@@ -638,9 +638,31 @@ router.post('/schedule', async (req, res) => {
 /**
  * GET - Get all scheduled emails
  */
+// router.get('/scheduled', async (req, res) => {
+//   try {
+//     const scheduledEmails = await emailScheduler.getAllScheduledEmails();
+    
+//     res.json({
+//       success: true,
+//       count: scheduledEmails.length,
+//       data: scheduledEmails
+//     });
+
+//   } catch (error) {
+//     console.error('Error fetching scheduled emails:', error);
+//     res.status(500).json({ 
+//       error: 'Failed to fetch scheduled emails',
+//       details: error.message 
+//     });
+//   }
+// });
+
 router.get('/scheduled', async (req, res) => {
   try {
     const scheduledEmails = await emailScheduler.getAllScheduledEmails();
+    
+    // Add debug logging
+    console.log(`[API] Returning ${scheduledEmails.length} scheduled emails`);
     
     res.json({
       success: true,
@@ -651,11 +673,16 @@ router.get('/scheduled', async (req, res) => {
   } catch (error) {
     console.error('Error fetching scheduled emails:', error);
     res.status(500).json({ 
+      success: false,
       error: 'Failed to fetch scheduled emails',
       details: error.message 
     });
   }
 });
+
+
+
+
 
 /**
  * GET - Get specific scheduled email by jobId
