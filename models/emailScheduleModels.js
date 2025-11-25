@@ -59,7 +59,6 @@ const emailScheduleSchema = new mongoose.Schema({
   scheduledFor: {
     type: Date,
     required: true,
-    index: true
   },
   
   // Status tracking
@@ -112,7 +111,7 @@ const emailScheduleSchema = new mongoose.Schema({
 // Indexes for efficient querying
 emailScheduleSchema.index({ status: 1, scheduledFor: 1 });
 emailScheduleSchema.index({ scheduledFor: 1 });
-emailScheduleSchema.index({ jobId: 1 });
+// emailScheduleSchema.index({ jobId: 1 });
 
 // Method to acquire lock
 emailScheduleSchema.methods.acquireLock = async function(processorId, lockTimeoutMs = 300000) {
