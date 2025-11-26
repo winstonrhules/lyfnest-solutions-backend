@@ -250,6 +250,45 @@ class EmailSchedulerService {
   }
 
   /**
+ * Get all scheduled emails (simple version for frontend)
+ */
+async getAllScheduledEmails() {
+  try {
+    const emails = await EmailSchedule.find({})
+      .sort({ scheduledFor: 1, createdAt: -1 })
+      .limit(100); // Limit to prevent overload
+    
+    return emails;
+  } catch (error) {
+    console.error('Error fetching scheduled emails:', error);
+    throw new Error('Failed to fetch scheduled emails');
+  }
+}
+
+/**
+ * Simple method to process due emails (for manual trigger)
+ */
+async processDueEmails() {
+  try {
+    const dueEmails = await EmailSchedule.findDueEmails(10);
+    
+    if (dueEmails.length === 0) {
+      console.log('No due emails to process');
+      return;
+    }
+
+    console.log(`📬 Processing ${dueEmails.length} due email(s)`);
+    const processingPromises = dueEmails.map(email => this.processEmail(email));
+    await Promise.allSettled(processingPromises);
+
+  } catch (error) {
+    console.error('Error in manual email processor:', error);
+    throw error;
+  }
+}
+
+
+  /**
    * Get all scheduled emails with filtering
    */
   async getScheduledEmails(options = {}) {
