@@ -1,48 +1,193 @@
 const cron = require('node-cron');
 const { v4: uuidv4 } = require('uuid');
 const EmailSchedule = require('../models/emailScheduleModels');
-const { sendEmailViaSES } = require('./SESService');
-const { replaceTemplateVariables } = require('./TemplateService');
+const { sendEmailViaSES } = require('./sesService');
+const { replaceTemplateVariables } = require('./templateService');
+const mongoose = require('mongoose');
 
 class EmailSchedulerService {
   constructor() {
-    this.processorId = `email-processor-${uuidv4().substring(0, 8)}`;
+    this.processId = `scheduler-${uuidv4().substring(0, 8)}`;
     this.isRunning = false;
-    this.processingJobs = new Set();
     this.cronJob = null;
+    this.processingJobs = new Map();
+    this.dbConnected = false;
+
+    // Track DB connection
+    mongoose.connection.on('connected', () => {
+      this.dbConnected = true;
+      console.log('✅ Database connected - scheduler ready');
+    });
+
+    mongoose.connection.on('disconnected', () => {
+      this.dbConnected = false;
+      console.log('❌ Database disconnected - scheduler paused');
+    });
   }
 
   /**
-   * Start the email scheduler
+   * ✅ Schedule a new email
+   */
+  async scheduleEmail({ recipients, recipientContacts, subject, body, design, sender, attachments, scheduleDateTime }) {
+    try {
+      if (!recipients || recipients.length === 0) {
+        throw new Error('At least one recipient is required');
+      }
+
+      const jobId = `job-${uuidv4()}`;
+
+      const newSchedule = new EmailSchedule({
+        jobId,
+        recipients: recipients.map((email, index) => ({
+          email,
+          contactData: recipientContacts?.[index] || {}
+        })),
+        subject,
+        bodyTemplate: body,
+        design: design || 'default',
+        sender,
+        attachments: attachments || [],
+        scheduledFor: new Date(scheduleDateTime),
+        status: 'pending'
+      });
+
+      await newSchedule.save();
+
+      console.log(`📅 Scheduled new email job: ${jobId} for ${recipients.length} recipient(s)`);
+      return newSchedule;
+    } catch (error) {
+      console.error('❌ Error scheduling email:', error);
+      throw new Error('Failed to schedule email: ' + error.message);
+    }
+  }
+
+  /**
+   * ✅ Update an existing scheduled email (full edit)
+   */
+  async updateEmail(jobId, updates) {
+    const schedule = await EmailSchedule.findOne({ jobId });
+    if (!schedule) {
+      throw new Error(`Scheduled email with ID ${jobId} not found`);
+    }
+
+    // Do not allow editing while actively sending or after completion
+    if (schedule.status === 'processing') {
+      throw new Error('Cannot edit an email that is currently processing');
+    }
+
+    if (schedule.status === 'completed') {
+      throw new Error('Cannot edit an email that has already been completed');
+    }
+
+    // Recipients (array of { email, contactData })
+    if (Array.isArray(updates.recipients)) {
+      schedule.recipients = updates.recipients.map(r => ({
+        email: r.email,
+        contactData: r.contactData || {}
+      }));
+    }
+
+    // Subject
+    if (typeof updates.subject === 'string') {
+      schedule.subject = updates.subject;
+    }
+
+    // Body template (HTML)
+    if (typeof updates.body === 'string') {
+      schedule.bodyTemplate = updates.body;
+    }
+
+    // Design key
+    if (typeof updates.design === 'string') {
+      schedule.design = updates.design;
+    }
+
+    // Sender info
+    if (updates.sender) {
+      schedule.sender = {
+        ...schedule.sender,
+        ...updates.sender
+      };
+    }
+
+    // Attachments
+    if (Array.isArray(updates.attachments)) {
+      schedule.attachments = updates.attachments;
+    }
+
+    // Schedule date/time
+    if (updates.scheduleDateTime) {
+      const newTime = new Date(updates.scheduleDateTime);
+      if (isNaN(newTime.getTime())) {
+        throw new Error('Invalid schedule date/time');
+      }
+      schedule.scheduledFor = newTime;
+    }
+
+    // If previously failed/cancelled, reset it back to pending & clear old errors
+    if (['failed', 'cancelled'].includes(schedule.status)) {
+      schedule.status = 'pending';
+      schedule.attempts = 0;
+      schedule.lastError = null;
+      schedule.errorHistory = [];
+      schedule.results = [];
+      schedule.completedAt = null;
+      schedule.executedAt = null;
+    }
+
+    // Always drop locks when editing
+    schedule.lockedAt = null;
+    schedule.lockedBy = null;
+
+    await schedule.save();
+    return schedule;
+  }
+
+  /**
+   * ✅ Start the scheduler (runs every minute)
    */
   async start() {
     if (this.isRunning) {
-      console.log('Email scheduler already running');
+      console.log('⚠️ Email scheduler already running');
       return;
     }
 
-    console.log(`🚀 Starting Email Scheduler [${this.processorId}]`);
-    
-    // Clean up stale locks on startup
+    console.log(`🚀 Starting Email Scheduler [${this.processId}]`);
+
+    if (!this.dbConnected) {
+      console.log('⏳ Waiting for DB connection...');
+      await this.waitForConnection();
+    }
+
     await this.cleanupStaleLocks();
-    
-    // Start cron job that runs every minute
-    this.cronJob = cron.schedule('* * * * *', () => {
-      this.processDueEmails();
+    await this.processScheduledEmails();
+
+    // Run every minute
+    this.cronJob = cron.schedule('* * * * *', async () => {
+      await this.processScheduledEmails();
     });
 
-    // Clean up old emails daily at 2 AM
-    cron.schedule('0 2 * * *', () => {
-      this.cleanupOldEmails();
+    // Clean up completed jobs daily at midnight
+    cron.schedule('0 0 * * *', async () => {
+      await this.cleanupOldJobs();
     });
 
     this.isRunning = true;
     console.log('✅ Email scheduler started successfully');
   }
 
-  /**
-   * Stop the email scheduler
-   */
+  async waitForConnection(maxWaitTime = 30000) {
+    const startTime = Date.now();
+    while (Date.now() - startTime < maxWaitTime) {
+      if (mongoose.connection.readyState === 1) {
+        this.dbConnected = true;
+        return true;
+      }
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
+    throw new Error('Database connection timeout');
+  }
+
   stop() {
     if (this.cronJob) {
       this.cronJob.stop();
@@ -53,191 +198,102 @@ class EmailSchedulerService {
   }
 
   /**
-   * Schedule a new email
+   * ✅ Main job processor
    */
-  async scheduleEmail(emailData) {
+  async processScheduledEmails() {
     try {
-      const {
-        recipients,
-        recipientContacts = [],
-        subject,
-        body,
-        design = 'default',
-        sender,
-        attachments = [],
-        scheduleDateTime
-      } = emailData;
-
-      // Validate required fields
-      if (!recipients || !Array.isArray(recipients) || recipients.length === 0) {
-        throw new Error('At least one recipient is required');
-      }
-      if (!subject || !subject.trim()) {
-        throw new Error('Subject is required');
-      }
-      if (!body || !body.trim()) {
-        throw new Error('Email body is required');
-      }
-      if (!scheduleDateTime) {
-        throw new Error('Schedule date/time is required');
-      }
-
-      // Validate schedule time
-      const scheduledFor = new Date(scheduleDateTime);
-      if (isNaN(scheduledFor.getTime())) {
-        throw new Error('Invalid schedule date/time');
-      }
-      if (scheduledFor <= new Date()) {
-        throw new Error('Schedule time must be in the future');
-      }
-
-      // Create job ID
-      const jobId = `email-${uuidv4()}`;
-
-      // Prepare recipients with contact data
-      const formattedRecipients = recipients.map((email, index) => ({
-        email: email.trim(),
-        contactData: recipientContacts[index] || {}
-      }));
-
-      // Create schedule
-      const schedule = new EmailSchedule({
-        jobId,
-        recipients: formattedRecipients,
-        subject: subject.trim(),
-        bodyTemplate: body,
-        design,
-        sender,
-        attachments,
-        scheduledFor,
-        status: 'scheduled'
-      });
-
-      await schedule.save();
-
-      console.log(`📅 Scheduled email: ${jobId} for ${recipients.length} recipient(s) at ${scheduledFor}`);
-      return schedule;
-
-    } catch (error) {
-      console.error('❌ Error scheduling email:', error);
-      throw new Error(`Failed to schedule email: ${error.message}`);
-    }
-  }
-
-  /**
-   * Process due emails
-   */
-  async processDueEmails() {
-    try {
-      const dueEmails = await EmailSchedule.findDueEmails(10);
-      
-      if (dueEmails.length === 0) {
+      if (!this.dbConnected || mongoose.connection.readyState !== 1) {
+        console.log('⏳ Skipping processing - DB not connected');
         return;
       }
 
-      console.log(`📬 Processing ${dueEmails.length} due email(s)`);
+      const jobs = await EmailSchedule.findJobsToProcess(5, this.processId);
+      if (jobs.length === 0) return;
 
-      // Process emails in parallel with concurrency control
-      const processingPromises = dueEmails.map(email => 
-        this.processEmail(email)
-      );
-      
-      await Promise.allSettled(processingPromises);
-
+      console.log(`📬 Found ${jobs.length} jobs to process`);
+      const processPromises = jobs.map(job => this.processJob(job));
+      await Promise.allSettled(processPromises);
     } catch (error) {
-      console.error('❌ Error in email processor:', error);
+      console.error('❌ Error in scheduler loop:', error);
     }
   }
 
   /**
-   * Process a single email
+   * Process one job
    */
-  async processEmail(email) {
-    if (this.processingJobs.has(email.jobId)) {
-      return; // Already processing
+  async processJob(job) {
+    const jobId = job.jobId;
+
+    if (this.processingJobs.has(jobId)) {
+      console.log(`⏭️ Job ${jobId} already processing`);
+      return;
     }
 
-    this.processingJobs.add(email.jobId);
+    this.processingJobs.set(jobId, true);
 
     try {
-      // Acquire lock
-      const lockAcquired = await email.acquireLock(this.processorId);
+      const lockAcquired = await job.acquireLock(this.processId);
       if (!lockAcquired) {
-        console.log(`🔒 Could not acquire lock for ${email.jobId}`);
+        console.log(`🔒 Could not acquire lock for job ${jobId}`);
         return;
       }
 
-      console.log(`🔄 Processing email: ${email.jobId}`);
-      
-      // Send to all recipients
-      const results = await this.sendToRecipients(email);
-      
-      // Mark as sent
-      await email.markSent(results);
-      
-      console.log(`✅ Successfully sent email: ${email.jobId}`);
+      console.log(`🔄 Processing job ${jobId} for ${job.recipients.length} recipient(s)`);
 
+      const results = await this.sendToAllRecipients(job);
+
+      await job.markCompleted(results);
+      console.log(`✅ Job ${jobId} completed successfully`);
     } catch (error) {
-      console.error(`❌ Failed to process email ${email.jobId}:`, error);
-      
-      try {
-        await email.markFailed(error.message);
-      } catch (markError) {
-        console.error(`❌ Failed to mark email as failed: ${markError.message}`);
-      }
+      console.error(`❌ Error processing job ${jobId}:`, error);
+      await job.markFailed(error.message);
     } finally {
-      this.processingJobs.delete(email.jobId);
+      this.processingJobs.delete(jobId);
     }
   }
 
   /**
    * Send email to all recipients
    */
-  async sendToRecipients(email) {
+  async sendToAllRecipients(job) {
     const results = [];
-    const UserSettings = require('../models/UserSettings');
-    
-    // Get company settings for template variables
+    const UserSettings = require('../models/userSettingModels');
     const settings = await UserSettings.findOne();
     const companySettings = settings?.companySettings || {};
 
-    for (const recipient of email.recipients) {
+    for (const recipient of job.recipients) {
       try {
-        // Personalize content
         const personalizedSubject = replaceTemplateVariables(
-          email.subject,
-          recipient.contactData,
+          job.subject,
+          recipient.contactData || {},
           companySettings
         );
-        
         const personalizedBody = replaceTemplateVariables(
-          email.bodyTemplate,
-          recipient.contactData,
+          job.bodyTemplate,
+          recipient.contactData || {},
           companySettings
         );
 
-        // Send email
-        const emailResult = await sendEmailViaSES({
+        const emailPayload = {
           recipients: [recipient.email],
           subject: personalizedSubject,
           body: personalizedBody,
-          sender: email.sender,
-          attachments: email.attachments,
-          design: email.design
-        });
+          sender: job.sender,
+          attachments: job.attachments || [],
+          design: job.design || 'default'
+        };
+
+        await sendEmailViaSES(emailPayload);
 
         results.push({
           recipientEmail: recipient.email,
           success: true,
-          sentAt: new Date(),
-          messageId: emailResult.messageId
+          sentAt: new Date()
         });
 
         console.log(`✉️ Sent to ${recipient.email}`);
-
       } catch (error) {
         console.error(`❌ Failed to send to ${recipient.email}:`, error);
-        
         results.push({
           recipientEmail: recipient.email,
           success: false,
@@ -250,267 +306,112 @@ class EmailSchedulerService {
   }
 
   /**
- * Get all scheduled emails (simple version for frontend)
- */
-async getAllScheduledEmails() {
-  try {
-    const emails = await EmailSchedule.find({})
-      .sort({ scheduledFor: 1, createdAt: -1 })
-      .limit(100); // Limit to prevent overload
-    
-    return emails;
-  } catch (error) {
-    console.error('Error fetching scheduled emails:', error);
-    throw new Error('Failed to fetch scheduled emails');
-  }
-}
+   * ✅ Get all scheduled emails
+   */
+  async getAllScheduledEmails() {
+    try {
+      const emails = await EmailSchedule.find({
+        status: { $in: ['pending', 'processing', 'cancelled', 'failed', 'completed'] }
+      }).sort({ scheduledFor: 1 });
 
-/**
- * Simple method to process due emails (for manual trigger)
- */
-async processDueEmails() {
-  try {
-    const dueEmails = await EmailSchedule.findDueEmails(10);
-    
-    if (dueEmails.length === 0) {
-      console.log('No due emails to process');
+      return emails;
+    } catch (error) {
+      console.error('❌ Error fetching scheduled emails:', error);
+      throw new Error('Failed to fetch scheduled emails');
+    }
+  }
+
+  /**
+   * ✅ Get one scheduled email by jobId
+   */
+  async getScheduledEmail(jobId) {
+    const schedule = await EmailSchedule.findOne({ jobId });
+    if (!schedule) throw new Error(`Scheduled email with ID ${jobId} not found`);
+    return schedule;
+  }
+
+  /**
+   * ✅ Cancel scheduled email
+   */
+  async cancelEmail(jobId) {
+    const schedule = await EmailSchedule.findOne({ jobId });
+    if (!schedule) throw new Error(`Scheduled email with ID ${jobId} not found`);
+
+    if (['completed', 'failed'].includes(schedule.status)) {
+      throw new Error('Cannot cancel an email that has already been processed');
+    }
+
+    schedule.status = 'cancelled';
+    await schedule.save();
+
+    console.log(`🚫 Cancelled scheduled email [${jobId}]`);
+    return schedule;
+  }
+
+  /**
+   * Clean up stale locks
+   */
+  async cleanupStaleLocks() {
+    if (!this.dbConnected || mongoose.connection.readyState !== 1) {
+      console.log('⏳ Skipping stale lock cleanup - DB disconnected');
       return;
     }
 
-    console.log(`📬 Processing ${dueEmails.length} due email(s)`);
-    const processingPromises = dueEmails.map(email => this.processEmail(email));
-    await Promise.allSettled(processingPromises);
+    try {
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+      const result = await EmailSchedule.updateMany(
+        { status: 'processing', lockedAt: { $lt: fiveMinutesAgo } },
+        { $set: { status: 'pending', lockedAt: null, lockedBy: null } }
+      );
 
-  } catch (error) {
-    console.error('Error in manual email processor:', error);
-    throw error;
+      if (result.modifiedCount > 0) {
+        console.log(`🔓 Cleaned up ${result.modifiedCount} stale locks`);
+      }
+    } catch (error) {
+      console.error('❌ Error cleaning up stale locks:', error.message);
+    }
   }
-}
-
 
   /**
-   * Get all scheduled emails with filtering
+   * Clean up old completed jobs
    */
-  async getScheduledEmails(options = {}) {
-    const {
-      status,
-      limit = 50,
-      page = 1
-    } = options;
-
-    const query = {};
-    if (status && status !== 'all') {
-      query.status = status;
+  async cleanupOldJobs() {
+    if (!this.dbConnected || mongoose.connection.readyState !== 1) {
+      console.log('⏳ DB not connected, skipping cleanup');
+      return;
     }
 
-    const skip = (page - 1) * limit;
+    try {
+      const result = await EmailSchedule.cleanupOldJobs(30);
+      console.log(`🗑️ Cleaned up ${result.deletedCount} old jobs`);
+    } catch (error) {
+      console.error('❌ Error cleaning up old jobs:', error.message);
+    }
+  }
 
-    const [emails, total] = await Promise.all([
-      EmailSchedule.find(query)
-        .sort({ scheduledFor: 1, createdAt: -1 })
-        .skip(skip)
-        .limit(limit),
-      EmailSchedule.countDocuments(query)
-    ]);
+  /**
+   * ✅ Scheduler status (for dashboard)
+   */
+  async getStatus() {
+    const total = await EmailSchedule.countDocuments();
+    const pending = await EmailSchedule.countDocuments({ status: 'pending' });
+    const processing = await EmailSchedule.countDocuments({ status: 'processing' });
+    const completed = await EmailSchedule.countDocuments({ status: 'completed' });
+    const failed = await EmailSchedule.countDocuments({ status: 'failed' });
+    const cancelled = await EmailSchedule.countDocuments({ status: 'cancelled' });
 
     return {
-      emails,
-      pagination: {
-        page,
-        limit,
-        total,
-        pages: Math.ceil(total / limit)
-      }
-    };
-  }
-
-  /**
-   * Get specific scheduled email
-   */
-  async getScheduledEmail(jobId) {
-    const email = await EmailSchedule.findOne({ jobId });
-    if (!email) {
-      throw new Error(`Scheduled email not found: ${jobId}`);
-    }
-    return email;
-  }
-
-  /**
-   * Update scheduled email
-   */
-  async updateScheduledEmail(jobId, updates) {
-    const email = await EmailSchedule.findOne({ jobId });
-    if (!email) {
-      throw new Error(`Scheduled email not found: ${jobId}`);
-    }
-
-    // Cannot update emails that are processing or sent
-    if (email.status === 'processing') {
-      throw new Error('Cannot update email that is currently being sent');
-    }
-    if (email.status === 'sent') {
-      throw new Error('Cannot update email that has already been sent');
-    }
-
-    // Apply updates
-    const allowedUpdates = [
-      'recipients', 'subject', 'bodyTemplate', 'design', 
-      'sender', 'attachments', 'scheduledFor'
-    ];
-
-    allowedUpdates.forEach(field => {
-      if (updates[field] !== undefined) {
-        email[field] = updates[field];
-      }
-    });
-
-    // If updating scheduled time, validate it's in the future
-    if (updates.scheduledFor) {
-      const newTime = new Date(updates.scheduledFor);
-      if (newTime <= new Date()) {
-        throw new Error('New schedule time must be in the future');
-      }
-      email.scheduledFor = newTime;
-    }
-
-    // Reset status if it was failed/cancelled
-    if (['failed', 'cancelled'].includes(email.status)) {
-      email.status = 'scheduled';
-      email.attempts = 0;
-      email.lastError = null;
-      email.errorHistory = [];
-    }
-
-    // Clear any locks
-    email.lockedAt = null;
-    email.lockedBy = null;
-
-    await email.save();
-    return email;
-  }
-
-  /**
-   * Cancel scheduled email
-   */
-  async cancelScheduledEmail(jobId) {
-    const email = await EmailSchedule.findOne({ jobId });
-    if (!email) {
-      throw new Error(`Scheduled email not found: ${jobId}`);
-    }
-
-    if (email.status === 'sent') {
-      throw new Error('Cannot cancel email that has already been sent');
-    }
-    if (email.status === 'processing') {
-      throw new Error('Cannot cancel email that is currently being sent');
-    }
-
-    email.status = 'cancelled';
-    email.lockedAt = null;
-    email.lockedBy = null;
-    
-    await email.save();
-    
-    console.log(`🚫 Cancelled scheduled email: ${jobId}`);
-    return email;
-  }
-
-  /**
-   * Send scheduled email immediately
-   */
-  async sendScheduledEmailNow(jobId) {
-    const email = await EmailSchedule.findOne({ jobId });
-    if (!email) {
-      throw new Error(`Scheduled email not found: ${jobId}`);
-    }
-
-    if (email.status === 'sent') {
-      throw new Error('Email has already been sent');
-    }
-    if (email.status === 'processing') {
-      throw new Error('Email is currently being sent');
-    }
-
-    // Update schedule to now and process immediately
-    email.scheduledFor = new Date();
-    email.status = 'scheduled';
-    await email.save();
-
-    // Process immediately
-    await this.processEmail(email);
-
-    return email;
-  }
-
-  /**
-   * Cleanup stale locks
-   */
-  async cleanupStaleLocks() {
-    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
-    
-    const result = await EmailSchedule.updateMany(
-      {
-        status: 'processing',
-        lockedAt: { $lt: fiveMinutesAgo }
-      },
-      {
-        $set: {
-          status: 'scheduled',
-          lockedAt: null,
-          lockedBy: null
-        }
-      }
-    );
-
-    if (result.modifiedCount > 0) {
-      console.log(`🔓 Cleaned ${result.modifiedCount} stale locks`);
-    }
-  }
-
-  /**
-   * Cleanup old sent emails
-   */
-  async cleanupOldEmails() {
-    const result = await EmailSchedule.cleanupOldEmails(30);
-    console.log(`🗑️ Cleaned up ${result.deletedCount} old emails`);
-  }
-
-  /**
-   * Get scheduler status
-   */
-  async getSchedulerStatus() {
-    const stats = await EmailSchedule.aggregate([
-      {
-        $group: {
-          _id: '$status',
-          count: { $sum: 1 }
-        }
-      }
-    ]);
-
-    const statusCounts = {
-      scheduled: 0,
-      processing: 0,
-      sent: 0,
-      failed: 0,
-      cancelled: 0,
-      total: 0
-    };
-
-    stats.forEach(stat => {
-      statusCounts[stat._id] = stat.count;
-      statusCounts.total += stat.count;
-    });
-
-    return {
-      ...statusCounts,
-      processorId: this.processorId,
+      processId: this.processId,
+      total,
+      pending,
+      processing,
+      completed,
+      failed,
+      cancelled,
       isRunning: this.isRunning,
-      processingJobs: this.processingJobs.size,
       lastUpdated: new Date()
     };
   }
 }
 
-// Create and export singleton instance
 module.exports = new EmailSchedulerService();

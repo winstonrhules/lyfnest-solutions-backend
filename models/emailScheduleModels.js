@@ -1,6 +1,7 @@
 const mongoose = require('mongoose');
 
 const emailScheduleSchema = new mongoose.Schema({
+  // Unique identifier for this scheduled email job
   jobId: {
     type: String,
     required: true,
@@ -14,16 +15,17 @@ const emailScheduleSchema = new mongoose.Schema({
     contactData: {
       firstName: String,
       lastName: String,
-      phone: String,
+       email: String,    
+       phone: String,
       policyType: String,
       policyNumber: String,
-      renewalDate: String,
-      premiumAmount: String,
-      Dob: Date,
-      appointmentDate: String,
-      appointmentTime: String,
-      reviewDueDate: String,
-      customFields: mongoose.Schema.Types.Mixed
+    renewalDate: String,
+    premiumAmount: String, 
+    Dob: Date,
+    appointmentDate: String,
+    appointmentTime: String,
+    reviewDueDate: String,
+    customFields: mongoose.Schema.Types.Mixed
     }
   }],
   
@@ -50,32 +52,38 @@ const emailScheduleSchema = new mongoose.Schema({
   
   attachments: [{
     filename: String,
-    path: String,
-    size: Number,
-    mimetype: String
+    path: String
   }],
   
-  // Scheduling
+  // Scheduling information
   scheduledFor: {
     type: Date,
     required: true,
-  },
-  
-  // Status tracking
-  status: {
-    type: String,
-    enum: ['scheduled', 'processing', 'sent', 'failed', 'cancelled'],
-    default: 'scheduled',
     index: true
   },
   
-  // Lock mechanism for processing
-  lockedAt: Date,
-  lockedBy: String,
+  // Status tracking - CRITICAL for preventing duplicates
+  status: {
+    type: String,
+    enum: ['pending', 'processing', 'completed', 'failed', 'cancelled'],
+    default: 'pending',
+    index: true
+  },
+  
+  // Lock mechanism
+  lockedAt: {
+    type: Date,
+    index: true
+  },
+  
+  lockedBy: {
+    type: String  // Server/process identifier
+  },
   
   // Execution tracking
-  processedAt: Date,
-  sentAt: Date,
+  executedAt: Date,
+  
+  completedAt: Date,
   
   attempts: {
     type: Number,
@@ -87,122 +95,123 @@ const emailScheduleSchema = new mongoose.Schema({
     default: 3
   },
   
-  // Results tracking
-  results: [{
-    recipientEmail: String,
-    success: Boolean,
-    sentAt: Date,
-    messageId: String,
-    error: String
-  }],
-  
+  // Error tracking
   lastError: String,
   
   errorHistory: [{
     error: String,
     timestamp: Date,
     attempt: Number
+  }],
+  
+  // Results tracking
+  results: [{
+    recipientEmail: String,
+    success: Boolean,
+    sentAt: Date,
+    error: String
   }]
   
 }, {
   timestamps: true
 });
 
-// Indexes for efficient querying
+// Compound indexes for efficient querying
 emailScheduleSchema.index({ status: 1, scheduledFor: 1 });
-emailScheduleSchema.index({ scheduledFor: 1 });
-// emailScheduleSchema.index({ jobId: 1 });
+emailScheduleSchema.index({ status: 1, lockedAt: 1 });
+emailScheduleSchema.index({ jobId: 1, status: 1 });
 
-// Method to acquire lock
-emailScheduleSchema.methods.acquireLock = async function(processorId, lockTimeoutMs = 300000) {
-  const lockExpiry = new Date(Date.now() - lockTimeoutMs);
+// Method to acquire lock for processing
+emailScheduleSchema.methods.acquireLock = async function(processId, lockDuration = 300000) {
+  const now = new Date();
+  const lockExpiry = new Date(now.getTime() - lockDuration);
   
-  const result = await mongoose.model('EmailSchedule').findOneAndUpdate(
+  // Try to acquire lock atomically
+  const result = await this.constructor.findOneAndUpdate(
     {
       _id: this._id,
-      status: 'scheduled',
+      status: 'pending',
       $or: [
-        { lockedAt: { $exists: false } },
         { lockedAt: null },
-        { lockedAt: { $lt: lockExpiry } }
+        { lockedAt: { $lt: lockExpiry } }  // Lock expired
       ]
     },
     {
       $set: {
         status: 'processing',
-        lockedAt: new Date(),
-        lockedBy: processorId
+        lockedAt: now,
+        lockedBy: processId,
+        executedAt: now
       },
       $inc: { attempts: 1 }
-    }
+    },
+    { new: true }
   );
   
   return result !== null;
 };
 
-// Method to release lock and mark as sent
-emailScheduleSchema.methods.markSent = async function(results) {
-  await mongoose.model('EmailSchedule').findOneAndUpdate(
-    { _id: this._id },
-    {
-      $set: {
-        status: 'sent',
-        sentAt: new Date(),
-        results: results,
-        lockedAt: null,
-        lockedBy: null
-      }
+// Method to mark as completed
+emailScheduleSchema.methods.markCompleted = async function(results) {
+  await this.constructor.findByIdAndUpdate(this._id, {
+    $set: {
+      status: 'completed',
+      completedAt: new Date(),
+      results: results,
+      lockedAt: null,
+      lockedBy: null
     }
-  );
+  });
 };
 
 // Method to mark as failed
 emailScheduleSchema.methods.markFailed = async function(error) {
   const shouldRetry = this.attempts < this.maxAttempts;
   
-  await mongoose.model('EmailSchedule').findOneAndUpdate(
-    { _id: this._id },
-    {
-      $set: {
-        status: shouldRetry ? 'scheduled' : 'failed',
-        lastError: error,
-        lockedAt: null,
-        lockedBy: null
-      },
-      $push: {
-        errorHistory: {
-          error: error,
-          timestamp: new Date(),
-          attempt: this.attempts
-        }
+  await this.constructor.findByIdAndUpdate(this._id, {
+    $set: {
+      status: shouldRetry ? 'pending' : 'failed',
+      lastError: error,
+      lockedAt: null,
+      lockedBy: null
+    },
+    $push: {
+      errorHistory: {
+        error: error,
+        timestamp: new Date(),
+        attempt: this.attempts
       }
     }
-  );
+  });
 };
 
-// Static method to find due emails
-emailScheduleSchema.statics.findDueEmails = async function(limit = 10) {
+// Static method to find jobs ready for processing
+emailScheduleSchema.statics.findJobsToProcess = async function(limit = 5, processId) {
+  const now = new Date();
+  
   return await this.find({
-    status: 'scheduled',
-    scheduledFor: { $lte: new Date() },
-    attempts: { $lt: 3 }
+    status: 'pending',
+    scheduledFor: { $lte: now },
+    attempts: { $lt: 3 },
+    $or: [
+      { lockedAt: null },
+      { lockedAt: { $lt: new Date(now.getTime() - 300000) } }  // 5 min old locks
+    ]
   })
   .sort({ scheduledFor: 1 })
   .limit(limit);
 };
 
-// Static method to cleanup old sent emails
-emailScheduleSchema.statics.cleanupOldEmails = async function(days = 30) {
-  const cutoff = new Date();
-  cutoff.setDate(cutoff.getDate() - days);
+// Static method to cleanup old completed jobs
+emailScheduleSchema.statics.cleanupOldJobs = async function(daysOld = 30) {
+  const cutoffDate = new Date();
+  cutoffDate.setDate(cutoffDate.getDate() - daysOld);
   
   return await this.deleteMany({
-    status: 'sent',
-    sentAt: { $lt: cutoff }
+    status: 'completed',
+    completedAt: { $lt: cutoffDate }
   });
 };
 
 module.exports = mongoose.model('EmailSchedule', emailScheduleSchema);
-
-
 
