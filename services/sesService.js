@@ -29,7 +29,7 @@ const sendEmailViaSES = async (emailData) => {
     const params = {
       Source: `${sender.fromName} <${sender.fromEmail}>`,
       Destination: {
-        ToAddresses: recipients,
+        ToAddresses: recipients,   
         CcAddresses: emailData.cc || [],
         BccAddresses: emailData.bcc || []
       },

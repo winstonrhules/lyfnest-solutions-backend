@@ -4,7 +4,7 @@ const emailScheduler = require('../services/emailSchedulerService');
 
 /**
  * POST - Schedule a new email
- */
+ */ 
 router.post('/schedule', async (req, res) => {
   try {
     const {
@@ -203,7 +203,7 @@ router.post('/scheduled/:jobId/send-now', async (req, res) => {
     }
 
     // Trigger immediate processing
-    await emailScheduler.processScheduledEmails();
+    emailScheduler.processScheduledEmails();
 
     res.json({
       success: true,

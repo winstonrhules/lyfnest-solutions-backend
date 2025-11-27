@@ -311,7 +311,7 @@ class EmailSchedulerService {
   async getAllScheduledEmails() {
     try {
       const emails = await EmailSchedule.find({
-        status: { $in: ['pending', 'processing', 'cancelled', 'failed', 'completed'] }
+        status: { $in: ['pending', 'processing', 'cancelled', 'failed'] }
       }).sort({ scheduledFor: 1 });
 
       return emails;
