@@ -292,13 +292,19 @@ class EmailSchedulerService {
         });
 
         console.log(`✉️ Sent to ${recipient.email}`);
+           if(job.recipients.length>1){
+            await new Promise(resolve=>setTimeout(resolve, 100))
+           }
+
       } catch (error) {
         console.error(`❌ Failed to send to ${recipient.email}:`, error);
         results.push({
           recipientEmail: recipient.email,
           success: false,
           error: error.message
+          sentAt:new Date()
         });
+        continue;
       }
     }
 

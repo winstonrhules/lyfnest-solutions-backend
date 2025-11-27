@@ -34,7 +34,7 @@ const sendEmailViaSES = async (emailData) => {
         BccAddresses: emailData.bcc || []
       },
       Message: {
-        Subject: {
+        Subject: { 
           Data: subject,
           Charset: 'UTF-8'
         },
