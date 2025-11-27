@@ -203,7 +203,7 @@ router.post('/scheduled/:jobId/send-now', async (req, res) => {
     }
 
     // Trigger immediate processing
-    emailScheduler.processScheduledEmails();
+    await emailScheduler.processScheduledEmails();
 
     res.json({
       success: true,
