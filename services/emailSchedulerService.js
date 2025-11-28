@@ -301,8 +301,8 @@ class EmailSchedulerService {
         results.push({
           recipientEmail: recipient.email,
           success: false,
-          error: error.message
-          sentAt:new Date()
+          error: error.message,
+          sentAt: new Date()
         });
         continue;
       }
