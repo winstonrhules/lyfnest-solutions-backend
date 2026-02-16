@@ -180,10 +180,6 @@ Disallow: /api/appointment-forms/
 
 
 
-
-
-
-
 # Crawl delay for better server performance
 Crawl-delay: 1
 
