@@ -26,10 +26,10 @@ const clientContactSchema = new mongoose.Schema({
   policyType: {
     type: String,
     enum: ['IUL', 'WL', 'Term', 'Final Expense'],
-    required: true
+    required:false
   },
-  carrierName: { type: String, required: true },
-  policyEffectiveDate: { type: Date, required: true },
+  carrierName: { type: String, required: false },
+  policyEffectiveDate: { type: Date, required: false },
   annualReviewDate: Date,
   policyStatus: {
     type: String,
