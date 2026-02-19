@@ -680,7 +680,7 @@ const scheduleContactListZoomMeeting = asyncHandler(async (req, res) => {
     });
 
     // Generate scheduling link (using your actual domain)
-    const schedulingLink = `${process.env.FRONTEND_URL}/book-meeting/${appointment._id}`;
+    const schedulingLink = `${process.env.CONTACT_URL}/book-meeting/${appointment._id}`;
 
     // Send email with scheduling link
     const emailParams = {
@@ -867,11 +867,7 @@ function generateContactListEmail(contact, schedulingLink, suggestedDate) {
   `;
 }
 
-/**
- * Handle customer booking from the scheduling link
- * This is called when the contact clicks the link and books a time
- * @route POST /api/appointments/book-contact-meeting/:appointmentId
- */
+
 const bookContactMeeting = asyncHandler(async (req, res) => {
   try {
     const { appointmentId } = req.params;

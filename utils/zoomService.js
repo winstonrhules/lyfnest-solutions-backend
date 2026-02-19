@@ -6,7 +6,7 @@ const Notification = require('../models/notificationModels');
 // Get Zoom access token
 const getZoomAccessToken = async () => {
   try {
-    const response = await axios.post('https://zoom.us/oauth/token',  
+    const response = await axios.post(`${process.env.ZOOM_TOKEN_URL}`,  
       `grant_type=account_credentials&account_id=${process.env.ZOOM_ACCOUNT_ID}`,
       {
         headers: {
@@ -96,7 +96,7 @@ const safeUniversalContactUserByEmail = async (req, res) => {
       };
 
       const response = await axios.post(
-        'https://api.zoom.us/v2/users/me/meetings',
+        `${process.env.ZOOM_MEETING_URL}`,
         meetingData,
         {
           headers: {
@@ -126,7 +126,7 @@ const safeUniversalContactUserByEmail = async (req, res) => {
         startUrl: meeting.start_url || '', 
         hostEmail: meeting.host_email,
         createdAt: new Date(meeting.created_at),
-        schedulerUrl: `https://scheduler.zoom.us/nattye-a/discovery-and-guidance-call?meeting_id=${meeting.id}&first_name=${encodedFirstName}&last_name=${encodedLastName}&email=${encodedEmail}&appointment_id=${encodedAppointmentId}`
+        schedulerUrl: `${process.env.ZOOM_URL}?meeting_id=${meeting.id}&first_name=${encodedFirstName}&last_name=${encodedLastName}&email=${encodedEmail}&appointment_id=${encodedAppointmentId}`
         // schedulerUrl: `https://scheduler.zoom.us/nattye-a/discovery-and-guidance-call?meeting_id=${meeting.id}&first_name=${encodedFirstName}&last_name=${encodedLastName}&email=${encodedEmail}`
       });
 
@@ -282,7 +282,7 @@ const safeUniversalContactUserByEmail = async (req, res) => {
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
     <title>LyfNest Welcome Email</title>
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600&display=swap" rel="stylesheet" />
+    <link href=${process.env.FONTS} rel="stylesheet" />
   </head>
   <body style="margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; background-color: #f3f7f6; color: #333;">
     <div style="max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #dcebea;">
@@ -296,7 +296,7 @@ const safeUniversalContactUserByEmail = async (req, res) => {
               z-index: 1;">
   </div>
         <!-- Logo and Welcome text -->
-        <img src="https://res.cloudinary.com/dma2ht84k/image/upload/v1753279441/lyfnest-logo_byfywb.png" alt="LyfNest Logo" style="width: 60px; height: auto; position: absolute; top: 20px; left: 20px; z-index: 2;">
+        <img src="${process.env.CLOUDINARY_URL}/lyfnest-logo_byfywb.png" alt="LyfNest Logo" style="width: 60px; height: auto; position: absolute; top: 20px; left: 20px; z-index: 2;">
         <h1 style="font-family: 'Poppins', sans-serif; font-size: 28px; font-weight: 600; text-align: center; margin: 0; color: #0e94d0; letter-spacing: 1.5px; position: relative; z-index: 2;">WELCOME!</h1>
       </div>
 
@@ -477,11 +477,11 @@ const syncZoomMeetingsWithCompletion = async () => {
     // Get both upcoming and past meetings
     const [upcomingResponse, pastResponse] = await Promise.all([
       axios.get(
-        'https://api.zoom.us/v2/users/me/meetings?type=upcoming&page_size=300',
+        `${process.env.ZOOM_MEETING_URL}?type=upcoming&page_size=300`,
         { headers: { Authorization: `Bearer ${accessToken}` } }
       ),
       axios.get(
-        'https://api.zoom.us/v2/users/me/meetings?type=previous_meetings&page_size=300',
+        `${process.env.ZOOM_MEETING_URL}?type=previous_meetings&page_size=300`,
         { headers: { Authorization: `Bearer ${accessToken}` } }
       )
     ]);
