@@ -684,7 +684,7 @@ const scheduleContactListZoomMeeting = asyncHandler(async (req, res) => {
 
     // Send email with scheduling link
     const emailParams = {
-      Source: process.env.SES_FROM_EMAIL,
+      Source: process.env.SES_SENDER_EMAIL,
       Destination: {
         ToAddresses: [contact.Email]
       },
@@ -915,10 +915,7 @@ const bookContactMeeting = asyncHandler(async (req, res) => {
   }
 });
 
-module.exports = {
-  
-  // ... other existing exports
-};
+
 
 // ✅ ENHANCED: Get all appointments with proper user population
 const getAllAppointments = asyncHandler(async (req, res) => {
