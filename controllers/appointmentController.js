@@ -619,7 +619,8 @@ const sesClient = new SESClient({
 
 const scheduleContactListZoomMeeting = asyncHandler(async (req, res) => {
   try {
-    const { contactId, contactData } = req.body;
+    // const { contactId, contactData } = req.body;
+    const { contactId, contactData, emailSubject, emailBody } = req.body;
 
     // Validate input
     if (!contactId || !contactData) {
@@ -680,28 +681,51 @@ const scheduleContactListZoomMeeting = asyncHandler(async (req, res) => {
     });
 
     // Generate scheduling link (using your actual domain)
+    // const schedulingLink = `${process.env.CONTACT_URL}`;
     const schedulingLink = `${process.env.CONTACT_URL}/book-meeting/${appointment._id}`;
 
-    // Send email with scheduling link
+    const processedBody = emailBody
+      ? emailBody.replace(/\{\{schedulingLink\}\}/g, schedulingLink)
+      : null;
+
+    // Generate HTML email (use custom body if provided)
+    const htmlContent = generateContactListEmail(contact, schedulingLink, initialSlot, processedBody);
+    const textContent = processedBody || `Hi ${contact.firstName},\n\nIt's time for your annual policy review. Please click the link below to schedule a convenient time:\n\n${schedulingLink}\n\nBest regards,\nYour Insurance Team`;
+
+
+
+    // // Send email with scheduling link
+    // const emailParams = {
+    //   Source: process.env.SES_SENDER_EMAIL,
+    //   Destination: {
+    //     ToAddresses: [contact.Email]
+    //   },
+    //   Message: {
+    //     Subject: {
+    //       Data: `Schedule Your Policy Review Meeting - ${contact.firstName}`,
+    //       Charset: 'UTF-8'
+    //     },
+    //     Body: {
+    //       Html: {
+    //         Data: generateContactListEmail(contact, schedulingLink, initialSlot),
+    //         Charset: 'UTF-8'
+    //       },
+    //       Text: {
+    //         Data: `Hi ${contact.firstName},\n\nIt's time for your annual policy review. Please click the link below to schedule a convenient time:\n\n${schedulingLink}\n\nBest regards,\nYour Insurance Team`,
+    //         Charset: 'UTF-8'
+    //       }
+    //     }
+    //   }
+    // };
+
     const emailParams = {
       Source: process.env.SES_SENDER_EMAIL,
-      Destination: {
-        ToAddresses: [contact.Email]
-      },
+      Destination: { ToAddresses: [contact.Email] },
       Message: {
-        Subject: {
-          Data: `Schedule Your Policy Review Meeting - ${contact.firstName}`,
-          Charset: 'UTF-8'
-        },
+        Subject: { Data: subject, Charset: 'UTF-8' },
         Body: {
-          Html: {
-            Data: generateContactListEmail(contact, schedulingLink, initialSlot),
-            Charset: 'UTF-8'
-          },
-          Text: {
-            Data: `Hi ${contact.firstName},\n\nIt's time for your annual policy review. Please click the link below to schedule a convenient time:\n\n${schedulingLink}\n\nBest regards,\nYour Insurance Team`,
-            Charset: 'UTF-8'
-          }
+          Html: { Data: htmlContent, Charset: 'UTF-8' },
+          Text: { Data: textContent, Charset: 'UTF-8' }
         }
       }
     };
@@ -760,13 +784,37 @@ const scheduleContactListZoomMeeting = asyncHandler(async (req, res) => {
 /**
  * Generate HTML email for contact list scheduling
  */
-function generateContactListEmail(contact, schedulingLink, suggestedDate) {
+function generateContactListEmail(contact, schedulingLink, suggestedDate, customMessage = null) {
   const formattedDate = new Date(suggestedDate).toLocaleDateString('en-US', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric'
+    weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
   });
+
+ const defaultMessage = `
+    <p>It's time for your annual ${contact.policyType} policy review. We want to ensure your coverage continues to meet your needs and discuss any changes that may benefit you.</p>
+    <div class="info-box">
+      <strong>Your Policy Details:</strong><br>
+      Policy Type: ${contact.policyType}<br>
+      Carrier: ${contact.carrierName || 'N/A'}<br>
+      ${contact.annualReviewDate ? `Review Due: ${new Date(contact.annualReviewDate).toLocaleDateString()}` : ''}
+    </div>
+    <p>Please click the button below to schedule a convenient time for your review meeting:</p>
+    <div style="text-align: center;">
+      <a href="${schedulingLink}" class="button">Schedule My Meeting</a>
+    </div>
+    <p><small>Suggested date: ${formattedDate} (but you can choose any time that works for you)</small></p>
+    <p>During our meeting, we'll:</p>
+    <ul>
+      <li>Review your current coverage</li>
+      <li>Discuss any life changes that might affect your needs</li>
+      <li>Explore potential cost savings or enhanced benefits</li>
+      <li>Answer any questions you may have</li>
+    </ul>
+  `;
+
+  const messageHtml = customMessage
+    ? `<div style="white-space: pre-line;">${customMessage.replace(/\n/g, '<br>')}</div>`
+    : defaultMessage;
+
 
   return `
     <!DOCTYPE html>
@@ -822,41 +870,12 @@ function generateContactListEmail(contact, schedulingLink, suggestedDate) {
     </head>
     <body>
       <div class="container">
-        <div class="header">
-          <h1>📅 Time for Your Policy Review!</h1>
-        </div>
+        <div class="header"><h1>📅 Time for Your Policy Review!</h1></div>
         <div class="content">
           <p>Hi ${contact.firstName},</p>
-          
-          <p>It's time for your annual ${contact.policyType} policy review. We want to ensure your coverage continues to meet your needs and discuss any changes that may benefit you.</p>
-          
-          <div class="info-box">
-            <strong>Your Policy Details:</strong><br>
-            Policy Type: ${contact.policyType}<br>
-            Carrier: ${contact.carrierName || 'N/A'}<br>
-            ${contact.annualReviewDate ? `Review Due: ${new Date(contact.annualReviewDate).toLocaleDateString()}` : ''}
-          </div>
-          
-          <p>Please click the button below to schedule a convenient time for your review meeting:</p>
-          
-          <div style="text-align: center;">
-            <a href="${schedulingLink}" class="button">Schedule My Meeting</a>
-          </div>
-          
-          <p><small>Suggested date: ${formattedDate} (but you can choose any time that works for you)</small></p>
-          
-          <p>During our meeting, we'll:</p>
-          <ul>
-            <li>Review your current coverage</li>
-            <li>Discuss any life changes that might affect your needs</li>
-            <li>Explore potential cost savings or enhanced benefits</li>
-            <li>Answer any questions you may have</li>
-          </ul>
-          
+          ${messageHtml}
           <p>If you have any questions before scheduling, please don't hesitate to reach out.</p>
-          
-          <p>Best regards,<br>
-          <strong>Your Insurance Team</strong></p>
+          <p>Best regards,<br><strong>Your Insurance Team</strong></p>
         </div>
         <div class="footer">
           <p>This email was sent because you are a valued client. If you believe this was sent in error, please contact us.</p>
