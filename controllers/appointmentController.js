@@ -684,6 +684,7 @@ const scheduleContactListZoomMeeting = asyncHandler(async (req, res) => {
     // const schedulingLink = `${process.env.CONTACT_URL}`;
     const schedulingLink = `${process.env.CONTACT_URL}/book-meeting/${appointment._id}`;
 
+    const subject = emailSubject || `Schedule Your Policy Review Meeting - ${contact.firstName}`;
     const processedBody = emailBody
       ? emailBody.replace(/\{\{schedulingLink\}\}/g, schedulingLink)
       : null;
