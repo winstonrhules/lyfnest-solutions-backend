@@ -614,9 +614,6 @@ const sesClient = new SESClient({
   }
 });
 
-
-
-
 const scheduleContactListZoomMeeting = asyncHandler(async (req, res) => {
   try {
     // const { contactId, contactData } = req.body;
@@ -680,8 +677,7 @@ const scheduleContactListZoomMeeting = asyncHandler(async (req, res) => {
       source: 'manual'
     });
 
-    // Generate scheduling link (using your actual domain)
-    // const schedulingLink = `${process.env.CONTACT_URL}`;
+   
     const schedulingLink = `${process.env.CONTACT_URL}/book-meeting/${appointment._id}`;
 
     const subject = emailSubject || `Schedule Your Policy Review Meeting - ${contact.firstName}`;
@@ -692,32 +688,6 @@ const scheduleContactListZoomMeeting = asyncHandler(async (req, res) => {
     // Generate HTML email (use custom body if provided)
     const htmlContent = generateContactListEmail(contact, schedulingLink, initialSlot, processedBody);
     const textContent = processedBody || `Hi ${contact.firstName},\n\nIt's time for your annual policy review. Please click the link below to schedule a convenient time:\n\n${schedulingLink}\n\nBest regards,\nYour Insurance Team`;
-
-
-
-    // // Send email with scheduling link
-    // const emailParams = {
-    //   Source: process.env.SES_SENDER_EMAIL,
-    //   Destination: {
-    //     ToAddresses: [contact.Email]
-    //   },
-    //   Message: {
-    //     Subject: {
-    //       Data: `Schedule Your Policy Review Meeting - ${contact.firstName}`,
-    //       Charset: 'UTF-8'
-    //     },
-    //     Body: {
-    //       Html: {
-    //         Data: generateContactListEmail(contact, schedulingLink, initialSlot),
-    //         Charset: 'UTF-8'
-    //       },
-    //       Text: {
-    //         Data: `Hi ${contact.firstName},\n\nIt's time for your annual policy review. Please click the link below to schedule a convenient time:\n\n${schedulingLink}\n\nBest regards,\nYour Insurance Team`,
-    //         Charset: 'UTF-8'
-    //       }
-    //     }
-    //   }
-    // };
 
     const emailParams = {
       Source: process.env.SES_SENDER_EMAIL,
@@ -785,101 +755,157 @@ const scheduleContactListZoomMeeting = asyncHandler(async (req, res) => {
 /**
  * Generate HTML email for contact list scheduling
  */
+// function generateContactListEmail(contact, schedulingLink, suggestedDate, customMessage = null) {
+//   const formattedDate = new Date(suggestedDate).toLocaleDateString('en-US', {
+//     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+//   });
+
+//  const defaultMessage = `
+//     <p>It's time for your annual ${contact.policyType} policy review. We want to ensure your coverage continues to meet your needs and discuss any changes that may benefit you.</p>
+//     <div class="info-box">
+//       <strong>Your Policy Details:</strong><br>
+//       Policy Type: ${contact.policyType}<br>
+//       Carrier: ${contact.carrierName || 'N/A'}<br>
+//       ${contact.annualReviewDate ? `Review Due: ${new Date(contact.annualReviewDate).toLocaleDateString()}` : ''}
+//     </div>
+//     <p>Please click the button below to schedule a convenient time for your review meeting:</p>
+//     <div style="text-align: center;">
+//       <a href="${schedulingLink}" class="button">Schedule My Meeting</a>
+//     </div>
+//   `;
+
+//   const messageHtml = customMessage
+//     ? `<div style="white-space: pre-line;">${customMessage.replace(/\n/g, '<br>')}</div>`
+//     : defaultMessage;
+
+
+//   return `
+//     <!DOCTYPE html>
+//     <html>
+//     <head>
+//       <style>
+//         body {
+//           font-family: Arial, sans-serif;
+//           line-height: 1.6;
+//           color: #333;
+//         }
+//         .container {
+//           max-width: 600px;
+//           margin: 0 auto;
+//           padding: 20px;
+//           background-color: #f9f9f9;
+//         }
+//         .header {
+//           background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+//           color: white;
+//           padding: 30px;
+//           text-align: center;
+//           border-radius: 10px 10px 0 0;
+//         }
+//         .content {
+//           background: white;
+//           padding: 30px;
+//           border-radius: 0 0 10px 10px;
+//         }
+//         .button {
+//           display: inline-block;
+//           padding: 15px 30px;
+//           background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+//           color: white;
+//           text-decoration: none;
+//           border-radius: 5px;
+//           margin: 20px 0;
+//           font-weight: bold;
+//         }
+//         .info-box {
+//           background: #f0f4ff;
+//           padding: 15px;
+//           border-left: 4px solid #667eea;
+//           margin: 20px 0;
+//         }
+//         .footer {
+//           text-align: center;
+//           margin-top: 20px;
+//           color: #666;
+//           font-size: 12px;
+//         }
+//       </style>
+//     </head>
+//     <body>
+//       <div class="container">
+//         <div class="header"><h1>📅 BOOK A MEETING</h1></div>
+//         <div class="content">
+//           <p>Hi ${contact.firstName},</p>
+//           ${messageHtml}
+//           <p>If you have any questions before scheduling, please don't hesitate to reach out.</p>
+//           <p>Best regards,<br><strong>Your Insurance Team</strong></p>
+//         </div>
+//         <div class="footer">
+//           <p>This email was sent because you are a valued client. If you believe this was sent in error, please contact us.</p>
+//         </div>
+//       </div>
+//     </body>
+//     </html>
+//   `;
+// }
+
 function generateContactListEmail(contact, schedulingLink, suggestedDate, customMessage = null) {
   const formattedDate = new Date(suggestedDate).toLocaleDateString('en-US', {
     weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
   });
 
- const defaultMessage = `
+  const defaultMessage = `
     <p>It's time for your annual ${contact.policyType} policy review. We want to ensure your coverage continues to meet your needs and discuss any changes that may benefit you.</p>
-    <div class="info-box">
+    <div style="background: #f0f4ff; padding: 15px; border-left: 4px solid #0e94d0; margin: 20px 0; border-radius: 8px;">
       <strong>Your Policy Details:</strong><br>
       Policy Type: ${contact.policyType}<br>
       Carrier: ${contact.carrierName || 'N/A'}<br>
       ${contact.annualReviewDate ? `Review Due: ${new Date(contact.annualReviewDate).toLocaleDateString()}` : ''}
     </div>
     <p>Please click the button below to schedule a convenient time for your review meeting:</p>
-    <div style="text-align: center;">
-      <a href="${schedulingLink}" class="button">Schedule My Meeting</a>
+    <div style="text-align: center; margin: 30px 0;">
+      <a href="${schedulingLink}" style="background-color: #34a853; color: #ffffff; padding: 12px 24px; font-size: 16px; font-weight: bold; border-radius: 8px; text-decoration: none; display: inline-block; box-shadow: 0 3px 6px rgba(0,0,0,0.1);">Schedule My Meeting</a>
     </div>
-    <p><small>Suggested date: ${formattedDate} (but you can choose any time that works for you)</small></p>
-    <p>During our meeting, we'll:</p>
-    <ul>
-      <li>Review your current coverage</li>
-      <li>Discuss any life changes that might affect your needs</li>
-      <li>Explore potential cost savings or enhanced benefits</li>
-      <li>Answer any questions you may have</li>
-    </ul>
   `;
 
   const messageHtml = customMessage
     ? `<div style="white-space: pre-line;">${customMessage.replace(/\n/g, '<br>')}</div>`
     : defaultMessage;
 
-
   return `
     <!DOCTYPE html>
-    <html>
+    <html lang="en">
     <head>
-      <style>
-        body {
-          font-family: Arial, sans-serif;
-          line-height: 1.6;
-          color: #333;
-        }
-        .container {
-          max-width: 600px;
-          margin: 0 auto;
-          padding: 20px;
-          background-color: #f9f9f9;
-        }
-        .header {
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          color: white;
-          padding: 30px;
-          text-align: center;
-          border-radius: 10px 10px 0 0;
-        }
-        .content {
-          background: white;
-          padding: 30px;
-          border-radius: 0 0 10px 10px;
-        }
-        .button {
-          display: inline-block;
-          padding: 15px 30px;
-          background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-          color: white;
-          text-decoration: none;
-          border-radius: 5px;
-          margin: 20px 0;
-          font-weight: bold;
-        }
-        .info-box {
-          background: #f0f4ff;
-          padding: 15px;
-          border-left: 4px solid #667eea;
-          margin: 20px 0;
-        }
-        .footer {
-          text-align: center;
-          margin-top: 20px;
-          color: #666;
-          font-size: 12px;
-        }
-      </style>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+      <title> 📅 SCHEDULE A MEETING </title>
+      <link href="${process.env.FONTS || 'https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&family=Segoe+UI:wght@400;600&display=swap'}" rel="stylesheet" />
     </head>
-    <body>
-      <div class="container">
-        <div class="header"><h1>📅 Time for Your Policy Review!</h1></div>
-        <div class="content">
+    <body style="margin: 0; padding: 0; font-family: 'Segoe UI', sans-serif; background-color: #f3f7f6; color: #333;">
+      <div style="max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; border: 1px solid #dcebea;">
+        
+        <!-- Banner with overlays and logo -->
+        <div style="background: linear-gradient(135deg, #e1f0ef 0%, #cfe6e4 100%); position: relative; padding: 20px; overflow: hidden;">
+          <!-- Overlay with subtle thin gold lines -->
+          <div style="position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+                background-image: repeating-linear-gradient(45deg, rgba(212,175,55,0.25) 0px, rgba(158,126,22,0.25) 1px, transparent 1px, transparent 30px);
+                z-index: 1;">
+          </div>
+          <!-- Logo -->
+          <img src="${process.env.CLOUDINARY_URL}/lyfnest-logo_byfywb.png" alt="LyfNest Logo" style="width: 60px; height: auto; position: absolute; top: 20px; left: 20px; z-index: 2;">
+          <h1 style="font-family: 'Poppins', sans-serif; font-size: 28px; font-weight: 600; text-align: center; margin: 0; color: #0e94d0; letter-spacing: 1.5px; position: relative; z-index: 2;">WELCOME!</h1>
+        </div>
+
+        <div style="padding: 30px; font-size: 16px; line-height: 1.6; color: #2f4f4f;">
           <p>Hi ${contact.firstName},</p>
           ${messageHtml}
           <p>If you have any questions before scheduling, please don't hesitate to reach out.</p>
           <p>Best regards,<br><strong>Your Insurance Team</strong></p>
         </div>
-        <div class="footer">
-          <p>This email was sent because you are a valued client. If you believe this was sent in error, please contact us.</p>
+
+        <div style="background-color: #f0f5f4; text-align: center; padding: 20px; font-size: 14px; color: #666;">
+          LyfNest Solutions<br/>
+          Email: <a href="mailto:${process.env.SES_SENDER_EMAIL}" style="color: #339989; text-decoration: none;">${process.env.SES_SENDER_EMAIL}</a>
         </div>
       </div>
     </body>
