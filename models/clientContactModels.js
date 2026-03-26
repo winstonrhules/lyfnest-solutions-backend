@@ -36,6 +36,9 @@ const clientContactSchema = new mongoose.Schema({
     enum: ['active', 'inactive', 'lapsed', 'cancelled'],
     default: 'active'
   },
+
+  isActive: {type: Boolean, default:true },
+  deactivatedAt:{type: Date, default: null},
   clientSince: { type: Date, default: Date.now },
   lastContactedAt: Date,
   nextFollowUpAt: Date,
@@ -58,6 +61,7 @@ clientContactSchema.index({annualReviewDate:1})
 clientContactSchema.index({nextFollowUpAt:1})
 clientContactSchema.index({lastContactedAt:1})
 clientContactSchema.index({clientSince:1})
+clientContactSchema.index({isActive:1, deactivatedAt:1})
 
 
 

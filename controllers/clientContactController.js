@@ -84,6 +84,117 @@ const getAllClientContacts = asyncHandler(async (req, res) => {
   }
 });
 
+// Update a client contact (full update)
+const updateClientContact = async (req, res) => {
+  try {
+    const { contactId } = req.params;
+    const updateData = req.body;
+
+    // Optionally prevent updates to sensitive fields like _id, createdAt, etc.
+    const updatedContact = await ClientContact.findByIdAndUpdate(
+      contactId,
+      { $set: updateData },
+      { new: true, runValidators: true }
+    );
+
+    if (!updatedContact) {
+      return res.status(404).json({ message: "Contact not found" });
+    }
+
+    res.status(200).json(updatedContact);
+  } catch (error) {
+    console.error("Update contact error:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// Soft delete – set isActive false and store deactivatedAt
+const deactivateClientContact = async (req, res) => {
+  try {
+    const { contactId } = req.params;
+
+    const deactivatedContact = await ClientContact.findByIdAndUpdate(
+      contactId,
+      {
+        isActive: false,
+        deactivatedAt: new Date(),
+        // Optional: change policyStatus to "inactive" or leave as is
+      },
+      { new: true }
+    );
+
+    if (!deactivatedContact) {
+      return res.status(404).json({ message: "Contact not found" });
+    }
+
+    res.status(200).json({
+      message: "Contact deactivated and moved to archive",
+      contact: deactivatedContact,
+    });
+  } catch (error) {
+    console.error("Deactivate contact error:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// Get all archived contacts (isActive = false)
+const getArchivedContacts = async (req, res) => {
+  try {
+    const archivedContacts = await ClientContact.find({ isActive: false }).sort({ deactivatedAt: -1 });
+    res.status(200).json(archivedContacts);
+  } catch (error) {
+    console.error("Get archived contacts error:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// Reactivate a contact – set isActive true, clear deactivatedAt, and set policyStatus to 'active'
+const reactivateClientContact = async (req, res) => {
+  try {
+    const { contactId } = req.params;
+
+    const reactivatedContact = await ClientContact.findByIdAndUpdate(
+      contactId,
+      {
+        isActive: true,
+        deactivatedAt: null,
+        policyStatus: "active", // as per frontend expectation
+      },
+      { new: true }
+    );
+
+    if (!reactivatedContact) {
+      return res.status(404).json({ message: "Contact not found" });
+    }
+
+    res.status(200).json({
+      message: "Contact reactivated and moved back to contact list",
+      contact: reactivatedContact,
+    });
+  } catch (error) {
+    console.error("Reactivate contact error:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
+// Permanently delete a contact (hard delete)
+const permanentlyDeleteContact = async (req, res) => {
+  try {
+    const { contactId } = req.params;
+
+    const deletedContact = await ClientContact.findByIdAndDelete(contactId);
+
+    if (!deletedContact) {
+      return res.status(404).json({ message: "Contact not found" });
+    }
+
+    res.status(200).json({ message: "Contact permanently deleted" });
+  } catch (error) {
+    console.error("Permanent delete error:", error);
+    res.status(500).json({ message: "Server error", error: error.message });
+  }
+};
+
  const calculateEngagementMetrics = asyncHandler (async (req, res) => {
   try{
 
@@ -215,6 +326,11 @@ const getAllClientContacts = asyncHandler(async (req, res) => {
 module.exports = {
   createClientContact,
   getAllClientContacts,
+  updateClientContact,
+  deactivateClientContact,
+  getArchivedContacts,
+  permanentlyDeleteContact,
+  reactivateClientContact,
   calculateEngagementMetrics
 };
 
