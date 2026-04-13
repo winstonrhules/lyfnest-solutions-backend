@@ -9,7 +9,7 @@ const createClientContact = asyncHandler(async (req, res) => {
     if (!req.body.annualReviewDate && req.body.policyEffectiveDate) {
       const effectiveDate = new Date(req.body.policyEffectiveDate);
       req.body.annualReviewDate = new Date(
-        effectiveDate.getFullYear() + 1,
+        effectiveDate.getFullYear() + 1, 
         effectiveDate.getMonth(),
         effectiveDate.getDate()
       );
@@ -18,47 +18,47 @@ const createClientContact = asyncHandler(async (req, res) => {
     const newContact = await ClientContact.create(req.body);
 
     // const assignedSlot = new Date(req.body.policyEffectiveDate)
-    const assignedSlot = new Date();
+    // const assignedSlot = new Date();
 
-    const contactWindowStart = new Date(assignedSlot);
-    contactWindowStart.setHours(contactWindowStart.getHours()-1)
+    // const contactWindowStart = new Date(assignedSlot);
+    // contactWindowStart.setHours(contactWindowStart.getHours()-1)
 
-    const contactWindowEnd = new Date(assignedSlot);
-    contactWindowEnd.setHours(contactWindowEnd.getHours()+ 1)
+    // const contactWindowEnd = new Date(assignedSlot);
+    // contactWindowEnd.setHours(contactWindowEnd.getHours()+ 1)
 
-     const formData= {
-        firstName: req.body.firstName,
-        lastName: req.body.lastName,
-        email: req.body.Email,
-        phoneNumber: req.body.phoneNumber,
-        Dob:req.body.Dob
-      };
+    //  const formData= {
+    //     firstName: req.body.firstName,
+    //     lastName: req.body.lastName,
+    //     email: req.body.Email,
+    //     phoneNumber: req.body.phoneNumber,
+    //     Dob:req.body.Dob
+    //   };
 
-      const newAppointment = await Appointment.create({
-      user: {
-        firstName: req.body.firstName,
-        lastName: req.body.lastName,
-        email: req.body.Email,
-        phoneNumber: req.body.phoneNumber,
-        Dob:req.body.Dob
-      },
-      formId:new mongoose.Types.ObjectId(),
-      formData:formData,
-      assignedSlot: req.body.policyEffectiveDate,     
-      contactWindowStart:contactWindowStart,
-      contactWindowEnd:contactWindowEnd,
-      assignedSlot:assignedSlot,
-      initialSlot:assignedSlot,
-      formType: 'contact_list',
-      policyType: req.body.policyType,
-      policyEffectiveDate: req.body.policyEffectiveDate,
-      annualReviewDate: req.body.annualReviewDate,
-      nextFollowUpAt: req.body.nextFollowUpAt,
-      lastContactedAt:req.body.lastContactedAt,
-      isContactList: true,
-      appointmentType:'policy_review',
-      clientContactId: newContact._id
-    });
+    //   const newAppointment = await Appointment.create({
+    //   user: {
+    //     firstName: req.body.firstName,
+    //     lastName: req.body.lastName,
+    //     email: req.body.Email,
+    //     phoneNumber: req.body.phoneNumber,
+    //     Dob:req.body.Dob
+    //   },
+    //   formId:new mongoose.Types.ObjectId(),
+    //   formData:formData,
+    //   assignedSlot: req.body.policyEffectiveDate,     
+    //   contactWindowStart:contactWindowStart,
+    //   contactWindowEnd:contactWindowEnd,
+    //   assignedSlot:assignedSlot,
+    //   initialSlot:assignedSlot,
+    //   formType: 'contact_list',
+    //   policyType: req.body.policyType,
+    //   policyEffectiveDate: req.body.policyEffectiveDate,
+    //   annualReviewDate: req.body.annualReviewDate,
+    //   nextFollowUpAt: req.body.nextFollowUpAt,
+    //   lastContactedAt:req.body.lastContactedAt,
+    //   isContactList: true,
+    //   appointmentType:'policy_review',
+    //   clientContactId: newContact._id
+    // });
 
 
     res.status(201).json(newContact);
